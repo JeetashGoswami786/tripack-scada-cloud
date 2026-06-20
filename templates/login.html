@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Authentication | Tri-Pack SCADA</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Inter', sans-serif; }
+        body {
+            background-color: #1B3A5C; /* Your --brand-navy */
+            height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background-image: radial-gradient(circle at 50% -20%, #2C4A6E 0%, #1B3A5C 80%);
+        }
+        .login-card {
+            background: #FFFFFF;
+            padding: 45px 40px;
+            border-radius: 12px;
+            width: 100%;
+            max-width: 400px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            border-top: 5px solid #008FD5; /* Your --brand-blue */
+        }
+        .logo-area { text-align: center; margin-bottom: 30px; }
+        .logo-area img { max-width: 150px; margin-bottom: 15px; }
+        .system-title { font-size: 18px; font-weight: 800; color: #1B2A3B; letter-spacing: 1px; }
+        .system-subtitle { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: #8098B4; letter-spacing: 1.5px; }
+        
+        .input-group { margin-bottom: 20px; }
+        .input-group label { display: block; font-size: 11px; font-weight: 700; color: #4A6282; text-transform: uppercase; margin-bottom: 8px; letter-spacing: 0.5px; }
+        .input-group input {
+            width: 100%; padding: 12px 16px; border: 1px solid #B0C8DE; border-radius: 6px;
+            font-size: 14px; background: #EEF3F8; color: #1B2A3B; outline: none; transition: all 0.2s;
+        }
+        .input-group input:focus { border-color: #008FD5; background: #FFFFFF; box-shadow: 0 0 0 3px rgba(0,143,213,0.15); }
+        
+        .btn-login {
+            width: 100%; padding: 14px; background: #008FD5; border: none; border-radius: 6px;
+            color: white; font-size: 14px; font-weight: 700; letter-spacing: 1px; cursor: pointer;
+            transition: background 0.2s; margin-top: 10px;
+        }
+        .btn-login:hover { background: #006FAD; }
+        
+        .error-banner {
+            background: #FEF0F0; border: 1px solid #FABABD; color: #B91C1C;
+            padding: 12px; border-radius: 6px; font-size: 13px; font-weight: 600; text-align: center; margin-bottom: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="login-card">
+        <div class="logo-area">
+            <img src="/static/img/logo.png" alt="Company Logo">
+            <div class="system-title">LINE 5 SCADA PORTAL</div>
+            <div class="system-subtitle">RESTRICTED ACCESS</div>
+        </div>
+
+        {% if error %}
+        <div class="error-banner">{{ error }}</div>
+        {% endif %}
+
+        <form action="/login" method="POST">
+            <div class="input-group">
+                <label>Operator ID</label>
+                <input type="text" name="username" required autocomplete="off">
+            </div>
+            <div class="input-group">
+                <label>Security Key</label>
+                <input type="password" name="password" required>
+            </div>
+            <button type="submit" class="btn-login">AUTHENTICATE</button>
+        </form>
+    </div>
+</body>
+</html>
