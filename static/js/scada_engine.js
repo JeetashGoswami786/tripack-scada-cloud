@@ -133,6 +133,7 @@ async function initDashboard() {
 
         // Push all HTML to grid at once
         grid.innerHTML = gridHTML;
+        document.getElementById('loading-state')?.remove();
 
         // Initialize Charts AFTER HTML is on the page
         machines.forEach(m => {
