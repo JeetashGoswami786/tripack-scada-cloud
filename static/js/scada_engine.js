@@ -1,29 +1,14 @@
 /* ============================================================
-   SCADA ENGINE v5.0 — Final Enterprise Layout
+   SCADA ENGINE v5.1 — Master Integration
    ============================================================ */
 
+// ─── GLOBAL STATE ───────────────────────────────────────────
 const machineCharts = {};
 const prevValues = {};
 const MAX_PTS = 25;
-
-// ─── UTILITIES & ANIMATIONS ─────────────────────────────────
-function animateValue(el, from, to, ms, dp = 1) {
-    if (!el) return;
-    if (isNaN(from) || isNaN(to)) { el.textContent = isNaN(to) ? '---' : to.toFixed(dp); return; }
-    const diff = to - from;
-    if (Math.abs(diff) < 0.005) { el.textContent = to.toFixed(dp); return; }
-    const t0 = performance.now();
-    function tick(now) {
-        const p = Math.min((now - t0) / ms, 1);
-        el.textContent = (from + diff * (1 - Math.pow(1 - p, 3))).toFixed(dp);
-        if (p < 1) requestAnimationFrame(tick);
-    }
-    requestAnimationFrame(tick);
-}
+let startTime = new Date(); // This starts the uptime counter!
 
 // ─── LIVE CLOCK & UPTIME ─────────────────────────────────────
-startTime = new Date(); // Start the uptime counter
-
 function tickClock() {
     const now = new Date();
     const cl = document.getElementById('live-clock');
@@ -39,7 +24,22 @@ function tickClock() {
     }
 }
 setInterval(tickClock, 1000);
-tickClock(); // Run immediately on load
+document.addEventListener('DOMContentLoaded', tickClock);
+
+// ─── UTILITIES & ANIMATIONS ─────────────────────────────────
+function animateValue(el, from, to, ms, dp = 1) {
+    if (!el) return;
+    if (isNaN(from) || isNaN(to)) { el.textContent = isNaN(to) ? '---' : to.toFixed(dp); return; }
+    const diff = to - from;
+    if (Math.abs(diff) < 0.005) { el.textContent = to.toFixed(dp); return; }
+    const t0 = performance.now();
+    function tick(now) {
+        const p = Math.min((now - t0) / ms, 1);
+        el.textContent = (from + diff * (1 - Math.pow(1 - p, 3))).toFixed(dp);
+        if (p < 1) requestAnimationFrame(tick);
+    }
+    requestAnimationFrame(tick);
+}
 
 // ─── GAUGE BUILDERS ─────────────────────────────────────────
 function buildTicks() {
@@ -131,7 +131,6 @@ function initChart(id) {
 }
 
 // ─── DASHBOARD BUILDER ──────────────────────────────────────
-// ─── DASHBOARD BUILDER ──────────────────────────────────────
 async function initDashboard() {
     try {
         const response = await fetch('/static/data/machines.json');
@@ -143,19 +142,19 @@ async function initDashboard() {
         let gridHTML = ''; 
 
         machines.forEach(m => {
-            // 1. BULLETPROOF SCROLLING: Intercept the click and force smooth scroll via JS
+            // BULLETPROOF SCROLLING
             const li = document.createElement('li');
             li.innerHTML = `<a href="#" onclick="event.preventDefault(); document.getElementById('panel-${m.id}').scrollIntoView({behavior: 'smooth', block: 'start'});">${m.name}</a>`;
             sidebar.appendChild(li);
 
-            // 2. Add panel HTML to string
+            // Add panel HTML to string
             gridHTML += getPanelHTML(m);
         });
 
         // Push all HTML to grid at once
         grid.innerHTML = gridHTML;
 
-        // 3. BULLETPROOF LOADER REMOVAL: Find by ID or Class and destroy it completely
+        // DESTROY THE GHOST LOADER
         const loader = document.getElementById('loading-state') || document.querySelector('.loading-state');
         if (loader) loader.remove();
 
