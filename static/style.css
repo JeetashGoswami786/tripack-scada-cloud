@@ -75,3 +75,7 @@ main { padding: 40px; }
 @keyframes progress {
     0% { stroke-dasharray: 0 100; }
 }
+
+html {
+    scroll-behavior: smooth;
+}
