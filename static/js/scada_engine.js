@@ -59,14 +59,15 @@ async function initDashboard() {
         sidebar.innerHTML = '';
 
         machines.forEach(m => {
-            // 1. Build Sidebar Link
+            // 1. Build Sidebar Link (Point to #panel-id)
             const li = document.createElement('li');
             li.innerHTML = `<a href="#panel-${m.id}">${m.name}</a>`;
             sidebar.appendChild(li);
 
-            // 2. Build Panel
+            // 2. Build Panel (Must have id="panel-id" to match)
             const wrapper = document.createElement('div');
-            wrapper.id = `machine-${m.id}`; // Anchor point
+            wrapper.id = `panel-${m.id}`; 
+            wrapper.className = 'machine-wrapper'; // Added for styling control
             wrapper.innerHTML = getPanelHTML(m);
             grid.appendChild(wrapper);
 
