@@ -111,6 +111,7 @@ function initChart(id) {
 }
 
 // ─── DASHBOARD BUILDER ──────────────────────────────────────
+// ─── DASHBOARD BUILDER ──────────────────────────────────────
 async function initDashboard() {
     try {
         const response = await fetch('/static/data/machines.json');
@@ -119,21 +120,24 @@ async function initDashboard() {
         const grid = document.getElementById('machine-grid');
         const sidebar = document.getElementById('machine-list');
         
-        let gridHTML = ''; // Build in a string first to prevent layout breakage
+        let gridHTML = ''; 
 
         machines.forEach(m => {
-            // Sidebar link
+            // 1. BULLETPROOF SCROLLING: Intercept the click and force smooth scroll via JS
             const li = document.createElement('li');
-            li.innerHTML = `<a href="#panel-${m.id}">${m.name}</a>`;
+            li.innerHTML = `<a href="#" onclick="event.preventDefault(); document.getElementById('panel-${m.id}').scrollIntoView({behavior: 'smooth', block: 'start'});">${m.name}</a>`;
             sidebar.appendChild(li);
 
-            // Add panel HTML to string
+            // 2. Add panel HTML to string
             gridHTML += getPanelHTML(m);
         });
 
         // Push all HTML to grid at once
         grid.innerHTML = gridHTML;
-        document.getElementById('loading-state')?.remove();
+
+        // 3. BULLETPROOF LOADER REMOVAL: Find by ID or Class and destroy it completely
+        const loader = document.getElementById('loading-state') || document.querySelector('.loading-state');
+        if (loader) loader.remove();
 
         // Initialize Charts AFTER HTML is on the page
         machines.forEach(m => {
