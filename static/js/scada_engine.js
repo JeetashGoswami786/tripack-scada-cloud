@@ -21,6 +21,26 @@ function animateValue(el, from, to, ms, dp = 1) {
     requestAnimationFrame(tick);
 }
 
+// ─── LIVE CLOCK & UPTIME ─────────────────────────────────────
+startTime = new Date(); // Start the uptime counter
+
+function tickClock() {
+    const now = new Date();
+    const cl = document.getElementById('live-clock');
+    if (cl) cl.textContent = now.toLocaleTimeString('en-GB', { hour12: false });
+    
+    if (startTime) {
+        const s = Math.floor((now - startTime) / 1000);
+        const h = String(Math.floor(s / 3600)).padStart(2,'0');
+        const m = String(Math.floor((s % 3600) / 60)).padStart(2,'0');
+        const sc= String(s % 60).padStart(2,'0');
+        const up = document.getElementById('uptime-counter');
+        if (up) up.textContent = `${h}:${m}:${sc}`;
+    }
+}
+setInterval(tickClock, 1000);
+tickClock(); // Run immediately on load
+
 // ─── GAUGE BUILDERS ─────────────────────────────────────────
 function buildTicks() {
     let s = '';
