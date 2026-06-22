@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Line 5 Sub Station 3 | HMI SCADA</title>
-    <meta name="description" content="Industrial SCADA HMI Dashboard — Real-time energy monitoring for Line 5 Sub Station 3">
+    <meta name="description" content="Industrial SCADA HMI Dashboard — Real-time energy monitoring">
 
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -16,6 +16,40 @@
             color: #1a2332 !important;
             font-family: 'Inter', -apple-system, sans-serif;
             margin: 0; padding: 0;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            scroll-behavior: smooth; /* Essential for Anchor Scrolling */
+        }
+
+        /* Layout Wrappers */
+        .page-wrapper { display: flex; flex: 1; overflow: hidden; }
+        
+        /* Sidebar Styling */
+        .sidebar { 
+            width: 260px; 
+            background: #1a2332; 
+            color: white; 
+            overflow-y: auto; 
+            transition: 0.3s;
+            flex-shrink: 0;
+        }
+        .sidebar.closed { margin-left: -260px; }
+        .sidebar-header { padding: 20px; font-weight: 700; border-bottom: 1px solid #2C4A6E; color: #8098B4; }
+        .sidebar-list { list-style: none; padding: 0; margin: 0; }
+        .sidebar-list li a { 
+            display: block; padding: 12px 20px; color: #d1d5db; 
+            text-decoration: none; font-size: 13px; border-bottom: 1px solid #253347;
+        }
+        .sidebar-list li a:hover { background: #253347; color: white; }
+
+        /* Content Area */
+        .main-view { flex: 1; overflow-y: auto; padding: 20px; }
+        
+        /* Hamburger Button */
+        .hamburger { 
+            background: #2C4A6E; color: white; border: none; padding: 10px 15px; 
+            cursor: pointer; font-size: 18px; border-radius: 4px; margin-right: 15px;
         }
     </style>
 
@@ -25,9 +59,9 @@
 </head>
 <body>
 
-    <!-- ═══ HEADER ═══ -->
     <header class="scada-header" id="scada-header">
         <div class="header-left">
+            <button class="hamburger" onclick="toggleSidebar()">☰</button>
             <div class="logo-container">
                 <img src="/static/img/logo.png" alt="Tri-Pack Logo" class="header-logo">
             </div>
@@ -37,88 +71,83 @@
             </div>
         </div>
         <div class="header-right">
-            <div class="header-info-block">
-                <span class="info-label">SYSTEM TIME</span>
-                <span class="info-value" id="live-clock">--:--:--</span>
-            </div>
+            <div class="header-info-block"><span class="info-label">SYSTEM TIME</span><span class="info-value" id="live-clock">--:--:--</span></div>
             <div class="header-divider"></div>
-            <div class="header-info-block">
-                <span class="info-label">UPTIME</span>
-                <span class="info-value" id="uptime-counter">00:00:00</span>
-            </div>
-            <div class="header-divider"></div>
-            <div class="system-status" id="system-status-wrap">
-                <span class="pulse-dot" id="pulse-dot"></span>
-                <span class="status-text" id="connection-status">System Initializing...</span>
-            </div>
-            <a href="/logout" style="margin-left: 15px; color: #8098B4; font-size: 11px; text-decoration: none; font-weight: 700; border: 1px solid #2C4A6E; padding: 6px 12px; border-radius: 4px; transition: all 0.2s;">LOGOUT</a>
+            <div class="header-info-block"><span class="info-label">UPTIME</span><span class="info-value" id="uptime-counter">00:00:00</span></div>
+            <a href="/logout" style="margin-left: 15px; color: #8098B4; font-size: 11px; text-decoration: none; border: 1px solid #2C4A6E; padding: 6px 12px; border-radius: 4px;">LOGOUT</a>
         </div>
     </header>
 
-    <div class="header-accent-line" aria-hidden="true"></div>
+    <div class="page-wrapper">
+        
+        <nav id="sidebar" class="sidebar">
+            <div class="sidebar-header">MACHINE DIRECTORY</div>
+            <ul class="sidebar-list" id="machine-list">
+                </ul>
+        </nav>
 
-    <!-- ═══ KPI STRIP ═══ -->
-    <section class="kpi-strip" id="kpi-strip">
-        <div class="kpi-card">
-            <div class="kpi-icon-wrap kpi-icon--power">⚡</div>
-            <div class="kpi-data">
-                <span class="kpi-value" id="kpi-total-power">0.0</span>
-                <span class="kpi-label">TOTAL POWER (kW)</span>
+        <main class="main-view">
+            <section class="kpi-strip" id="kpi-strip">
+                </section>
+            
+            <div class="grid-container" id="machine-grid">
+                <div class="loading-state" id="loading-state">
+                    <div class="loading-spinner"></div>
+                    <span class="loading-text">Establishing Modbus TCP Handshake...</span>
+                </div>
             </div>
-        </div>
-        <div class="kpi-card">
-            <div class="kpi-icon-wrap kpi-icon--current">⏚</div>
-            <div class="kpi-data">
-                <span class="kpi-value" id="kpi-total-current">0</span>
-                <span class="kpi-label">TOTAL CURRENT (A)</span>
-            </div>
-        </div>
-        <div class="kpi-card">
-            <div class="kpi-icon-wrap kpi-icon--voltage">∿</div>
-            <div class="kpi-data">
-                <span class="kpi-value" id="kpi-avg-voltage">0.0</span>
-                <span class="kpi-label">AVG VOLTAGE (V)</span>
-            </div>
-        </div>
-        <div class="kpi-card">
-            <div class="kpi-icon-wrap kpi-icon--pf">φ</div>
-            <div class="kpi-data">
-                <span class="kpi-value" id="kpi-avg-pf">0.00</span>
-                <span class="kpi-label">AVG POWER FACTOR</span>
-            </div>
-        </div>
-        <div class="kpi-card">
-            <div class="kpi-icon-wrap kpi-icon--status">●</div>
-            <div class="kpi-data">
-                <span class="kpi-value" id="kpi-online-count">0 / 0</span>
-                <span class="kpi-label">METERS ONLINE</span>
-            </div>
-        </div>
-    </section>
-
-    <!-- ═══ MACHINE GRID ═══ -->
-    <main class="main-content">
-        <div class="grid-container" id="machine-grid">
-            <div class="loading-state" id="loading-state">
-                <div class="loading-spinner"></div>
-                <span class="loading-text">Establishing Modbus TCP Handshake...</span>
-            </div>
-        </div>
-    </main>
-
-    <!-- ═══ DETAIL MODAL ═══ -->
-    <div class="detail-modal" id="detail-modal" role="dialog" aria-hidden="true">
-        <div class="detail-modal-backdrop" id="modal-backdrop"></div>
-        <div class="detail-modal-content" id="detail-modal-content"></div>
+        </main>
     </div>
 
-    <!-- ═══ FOOTER ═══ -->
     <footer class="scada-footer">
         <span class="footer-item">SCADA HMI v2.0 · Modbus TCP/IP Protocol</span>
-        <span class="footer-item">POLL: <span class="footer-hl" id="poll-rate">2000</span>ms · LATENCY: <span class="footer-hl" id="api-latency">--</span>ms</span>
-        <span class="footer-item">Tri-Pack Films Ltd. · Industrial Automation Division</span>
     </footer>
 
+    <script>
+        function toggleSidebar() {
+            document.getElementById('sidebar').classList.toggle('closed');
+        }
+
+        // Master List of Machines
+        const machines = [
+            {id: 1, name: "1Q2 F111 (Tape Line)"},
+            {id: 2, name: "INCOMING QM1 LVP-07"},
+            {id: 3, name: "1Q4 F107 (Chilling of Slitting)"},
+            {id: 4, name: "Spare"},
+            {id: 5, name: "1Q9 (Crane)"},
+            {id: 6, name: "1Q10 F119 (Conveyors)"},
+            {id: 7, name: "1Q11 F112 (SS-01)"},
+            {id: 8, name: "1Q12 F113 (SS-09)"},
+            {id: 9, name: "1Q13 F114 (SS-11)"},
+            {id: 10, name: "1Q14 F115 (SS-12)"},
+            {id: 11, name: "1Q15 F116 (SS-04)"},
+            {id: 12, name: "1Q16 F117 (SS-13)"},
+            {id: 13, name: "1Q17 (Additional Slitter 1)"},
+            {id: 14, name: "1Q18 (Additional Slitter 2)"},
+            {id: 15, name: "1Q19 F129 (Additional Crane)"},
+            {id: 16, name: "1Q20 (Material Handling 1)"},
+            {id: 17, name: "1Q21 (Material Handling 2)"},
+            {id: 18, name: "Bus Coupler"},
+            {id: 19, name: "1Q24 F98 (Main Grinder)"},
+            {id: 20, name: "UTILITIES 1Q28 F101-A (MCC-08)"},
+            {id: 22, name: "1Q30 F105 (SMDB-L3)"},
+            {id: 23, name: "1Q31 F106 (SMDB-P3)"},
+            {id: 24, name: "1Q32 F99 (PS-07)"},
+            {id: 25, name: "1Q33 F100 (Packing Machine)"},
+            {id: 28, name: "INOPERATIVE 1Q23 F102 (Erema 04)"},
+            {id: 29, name: "INCOMING QM3 LVP-06"},
+            {id: 30, name: "1Q26 (Flak/Fluff Silo)"},
+            {id: 31, name: "UTILITES 1Q29 F101-B (MCC-09)"}
+        ];
+
+        // Inject Sidebar Links
+        const list = document.getElementById('machine-list');
+        machines.forEach(m => {
+            let li = document.createElement('li');
+            li.innerHTML = `<a href="#machine-${m.id}">${m.name}</a>`;
+            list.appendChild(li);
+        });
+    </script>
     <script src="/static/js/scada_engine.js?v=3"></script>
 </body>
 </html>
