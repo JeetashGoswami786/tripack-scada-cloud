@@ -174,18 +174,17 @@ function downloadPDF() {
     const element = document.querySelector('.master-chart-container');
     const tfLabel = document.getElementById('hist-timeframe').options[document.getElementById('hist-timeframe').selectedIndex].text;
     
-    // FIX: Added precise margins and forced exact window dimensions to prevent cropping
     const opt = {
-        margin:       [0.5, 0.5, 0.5, 0.5], // [Top, Left, Bottom, Right] margins in inches
+        margin:       0.2, // Tighter margin to leave room for the chart
         filename:     `SCADA_Report_${tfLabel}.pdf`,
-        image:        { type: 'jpeg', quality: 1.0 },
+        image:        { type: 'png', quality: 1.0 }, // PNG prevents text blurring
         html2canvas:  { 
             scale: 2, 
             backgroundColor: '#ffffff',
-            windowWidth: element.scrollWidth,  // Forces correct aspect ratio
-            windowHeight: element.scrollHeight // Prevents legend from being pushed off top
+            useCORS: true
         }, 
-        jsPDF:        { unit: 'in', format: 'a4', orientation: 'landscape' }
+        // FIX: Upgraded to 'a3' paper size to completely stop edge cropping
+        jsPDF:        { unit: 'in', format: 'a3', orientation: 'landscape' }
     };
     
     html2pdf().set(opt).from(element).save();
