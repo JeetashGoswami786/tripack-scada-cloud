@@ -119,9 +119,9 @@ async def get_history(section_id: str, timeframe: str = "24h", start: str = None
         query = "SELECT machine_id, EXTRACT(EPOCH FROM timestamp) * 1000 AS ts, kw, i_l1, v_l1, pf, kwh FROM scada_history WHERE section_id = %s"
         params = [section_id]
         
-        # New Custom Date Logic
         if timeframe == 'custom' and start and end:
-            query += " AND timestamp >= %s AND timestamp <= %s"
+            # Safely casts the JavaScript UTC string into a Database Timestamp
+            query += " AND timestamp >= CAST(%s AS TIMESTAMP) AND timestamp <= CAST(%s AS TIMESTAMP)"
             params.extend([start, end])
         else:
             interval_sql = get_sql_interval(timeframe)
@@ -151,7 +151,8 @@ async def export_csv(section_id: str, timeframe: str = "24h", start: str = None,
         params = [section_id]
         
         if timeframe == 'custom' and start and end:
-            query += " AND timestamp >= %s AND timestamp <= %s"
+            # Safely casts the JavaScript UTC string into a Database Timestamp
+            query += " AND timestamp >= CAST(%s AS TIMESTAMP) AND timestamp <= CAST(%s AS TIMESTAMP)"
             params.extend([start, end])
         else:
             interval_sql = get_sql_interval(timeframe)
@@ -176,7 +177,7 @@ async def export_csv(section_id: str, timeframe: str = "24h", start: str = None,
             writer.writerow([fmt_time, section_id, row['machine_id'], row['v_l1'], row['i_l1'], row['kw'], row['pf'], row['kwh']])
         
         output.seek(0)
-        headers = { 'Content-Disposition': f'attachment; filename="TriPack_{section_id}_Export_{timeframe}.csv"' }
+        headers = { 'Content-Disposition': f'attachment; filename="TriPack_{section_id}_Export.csv"' }
         return StreamingResponse(output, media_type="text/csv", headers=headers)
     except Exception as e: return {"error": str(e)}
 
