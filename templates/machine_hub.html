@@ -25,8 +25,19 @@
     </style>
 </head>
 <body>
+    <div class="header">
+        <a href="/dashboard/line5_sub3" class="back-btn">← Back to Plant</a>
+        <h1>Isolated Machine Network</h1>
+        <p style="opacity: 0.8; letter-spacing: 2px;">TIER 2 ENCRYPTED ACCESS</p>
+    </div>
+
+    <div id="error-banner" style="display: none; background: #ef4444; color: white; text-align: center; padding: 15px; font-weight: 800; letter-spacing: 1px;">
+        ❌ ACCESS DENIED: Incorrect Username or Password for that specific machine!
+    </div>
+
 
     <div class="header">
+        
         <a href="/dashboard/line5_sub3" class="back-btn">← Back to Plant</a>
         <h1>Isolated Machine Network</h1>
         <p style="opacity: 0.8; letter-spacing: 2px;">TIER 2 ENCRYPTED ACCESS</p>
@@ -69,11 +80,13 @@
         }
 
         // NEW: Check for Access Denied
+        // NEW: Check for Access Denied and show the red banner
         window.onload = function() {
             const urlParams = new URLSearchParams(window.location.search);
             if (urlParams.get('error')) {
-                alert("❌ ACCESS DENIED: Incorrect Username or Password for this machine.");
-                window.history.replaceState(null, '', window.location.pathname); // Clean the URL
+                document.getElementById('error-banner').style.display = 'block';
+                // Clean the URL so the error disappears on the next refresh
+                window.history.replaceState(null, '', window.location.pathname); 
             }
         }
     </script>    
