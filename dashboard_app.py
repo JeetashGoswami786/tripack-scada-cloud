@@ -171,10 +171,13 @@ async def export_csv(timeframe: str = "24h"):
 
         output = io.StringIO()
         writer = csv.writer(output)
-        writer.writerow(['Timestamp', 'Machine ID', 'Voltage L1 (V)', 'Current L1 (A)', 'Active Power (kW)', 'Power Factor'])
+        # Updated Headers
+        writer.writerow(['Date & Time', 'Machine ID', 'Voltage L1 (V)', 'Current L1 (A)', 'Active Power (kW)', 'Power Factor'])
         
         for row in rows:
-            writer.writerow([row['timestamp'], row['machine_id'], row['v_l1'], row['i_l1'], row['kw'], row['pf']])
+            # FIX: Force strict time formatting so Excel cannot misinterpret it
+            fmt_time = row['timestamp'].strftime('%Y-%m-%d %H:%M:%S') if row['timestamp'] else 'N/A'
+            writer.writerow([fmt_time, row['machine_id'], row['v_l1'], row['i_l1'], row['kw'], row['pf']])
         
         output.seek(0)
         headers = { 'Content-Disposition': f'attachment; filename="TriPack_SCADA_Export_{timeframe}.csv"' }
