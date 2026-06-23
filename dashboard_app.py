@@ -123,17 +123,23 @@ async def serve_machine_hub(request: Request):
 async def login_machine(request: Request, machine_id: str, username: str = Form(...), password: str = Form(...)):
     if machine_id in INDIVIDUAL_MACHINES:
         m = INDIVIDUAL_MACHINES[machine_id]
-        
-        # BULLETPROOF FIX: This ignores accidental spaces, auto-capitalization, and typos!
         clean_user = username.strip().lower()
         clean_pass = password.strip()
         
+        # Add these print statements
+        print(f"DEBUG: Attempting login for {machine_id}")
+        print(f"DEBUG: Input User: '{clean_user}' vs Target: '{m['username']}'")
+        print(f"DEBUG: Input Pass: '{clean_pass}' vs Target: '{m['password']}'")
+        
         if clean_user == m["username"].strip().lower() and clean_pass == m["password"]:
             if "machine_auth" not in request.session: request.session["machine_auth"] = []
-            if machine_id not in request.session["machine_auth"]: request.session["machine_auth"].append(machine_id)
+            if machine_id not in request.session["machine_auth"]: 
+                request.session["machine_auth"].append(machine_id)
+            
+            print(f"DEBUG: Login Success! Redirecting to /isolated/{machine_id}")
             return RedirectResponse(url=f"/isolated/{machine_id}", status_code=status.HTTP_303_SEE_OTHER)
             
-    # If failed, it WILL add ?error=1 to the URL so you know it was rejected.
+    print("DEBUG: Login FAILED")
     return RedirectResponse(url="/machine_hub?error=1", status_code=status.HTTP_303_SEE_OTHER)
 
 @app.get("/isolated/{machine_id}")
