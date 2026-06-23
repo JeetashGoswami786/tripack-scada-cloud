@@ -29,7 +29,14 @@ function tickClock() {
     }
 }
 setInterval(tickClock, 1000);
-document.addEventListener('DOMContentLoaded', tickClock);
+document.addEventListener('DOMContentLoaded', async () => {
+    console.log("Initializing Dashboard for:", CURRENT_SECTION);
+    
+    // FIX: Changed 'init()' to 'initDashboard()'
+    await initDashboard(); 
+    
+    // startPolling is called inside initDashboard, so you don't need it here!
+});
 
 // ─── UTILITIES & ANIMATIONS ─────────────────────────────────
 function animateValue(el, from, to, ms, dp = 1) {
