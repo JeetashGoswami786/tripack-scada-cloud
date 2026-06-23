@@ -4,14 +4,27 @@
     <meta charset="UTF-8">
     <title>{{ machine_name }} - Secure SCADA</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="/static/css/hmi_styles.css?v=4">
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
-        body { background: #eef1f5; font-family: 'Inter'; margin: 0; padding: 0; }
+        body { background: #eef1f5; font-family: 'Inter', sans-serif; margin: 0; padding: 0; }
         .header { background: #0f1623; color: white; padding: 20px 40px; display: flex; justify-content: space-between; align-items: center; border-bottom: 3px solid #10B981; }
-        .dashboard-container { padding: 40px; max-width: 800px; margin: 0 auto; }
-        .back-btn { color: white; text-decoration: none; border: 1px solid #2C4A6E; padding: 8px 15px; border-radius: 4px; font-size: 13px; }
-        .history-btn { background: #10B981; color: white; border: none; padding: 10px 20px; border-radius: 4px; cursor: pointer; font-weight: bold; margin-bottom: 20px;}
+        .dashboard-container { padding: 40px; max-width: 600px; margin: 0 auto; }
+        .back-btn { color: white; text-decoration: none; border: 1px solid #2C4A6E; padding: 8px 15px; border-radius: 4px; font-size: 13px; font-weight: bold; transition: 0.2s; }
+        .back-btn:hover { background: #2C4A6E; }
+        
+        /* New Bulletproof Isolated Card CSS */
+        .iso-card { background: white; border-radius: 8px; border-top: 4px solid #10B981; box-shadow: 0 4px 15px rgba(0,0,0,0.05); overflow: hidden; margin-bottom: 20px; }
+        .iso-header { background: #f8fafc; padding: 15px 25px; border-bottom: 1px solid #e2e8f0; font-weight: 800; color: #1e293b; display: flex; justify-content: space-between; align-items: center; }
+        .iso-status { background: #ecfdf5; color: #059669; padding: 4px 10px; border-radius: 4px; font-size: 11px; }
+        .iso-body { padding: 25px; }
+        .iso-row { display: flex; justify-content: space-between; align-items: center; padding: 15px 0; border-bottom: 1px solid #f1f5f9; }
+        .iso-row:last-child { border-bottom: none; }
+        .iso-label { color: #64748b; font-size: 13px; font-weight: 600; letter-spacing: 0.5px; }
+        .iso-val { font-size: 20px; font-weight: 800; color: #0f1623; }
+        .iso-unit { font-size: 14px; color: #94a3b8; font-weight: 600; }
+        .energy-val { color: #10B981; font-size: 24px; }
+        
+        .history-btn { background: #10B981; color: white; border: none; padding: 15px; border-radius: 8px; cursor: pointer; font-weight: 800; width: 100%; font-size: 15px; transition: 0.2s; }
+        .history-btn:hover { background: #059669; }
     </style>
 </head>
 <body>
@@ -19,44 +32,42 @@
     <div class="header">
         <div>
             <h1 style="margin:0; font-size: 24px;">{{ machine_name }}</h1>
-            <span style="font-size: 11px; color: #10B981;">SECURE ISOLATED NODE</span>
+            <span style="font-size: 11px; color: #10B981; letter-spacing: 1px;">SECURE ISOLATED NODE</span>
         </div>
         <a href="/machine_hub" class="back-btn">← Back to Hub</a>
     </div>
 
     <div class="dashboard-container">
-        <div class="machine-panel online" id="card" style="width: 100%; max-width: none;">
-            <div class="panel-header" style="background: white; padding: 20px;">
-                <h2 class="machine-name" style="color: #1a2332;">Live Telemetry</h2>
+        <div class="iso-card">
+            <div class="iso-header">
+                <span>LIVE TELEMETRY</span>
+                <span class="iso-status" id="conn-status">WAITING FOR DATA...</span>
             </div>
-            <div class="panel-body" style="background: white; padding: 20px; display: flex; gap: 40px;">
-                <div class="data-column" style="flex: 1;">
-                    <div style="display:flex; justify-content:space-between; margin-bottom: 15px; border-bottom: 1px solid #eee; padding-bottom: 10px;">
-                        <span style="color:#64748b; font-weight:bold; font-size:12px;">VOLTAGE L1</span>
-                        <span style="font-weight:bold; font-size:18px;"><span id="val-v">---</span> V</span>
-                    </div>
-                    <div style="display:flex; justify-content:space-between; margin-bottom: 15px; border-bottom: 1px solid #eee; padding-bottom: 10px;">
-                        <span style="color:#64748b; font-weight:bold; font-size:12px;">CURRENT L1</span>
-                        <span style="font-weight:bold; font-size:18px;"><span id="val-i">---</span> A</span>
-                    </div>
-                    <div style="display:flex; justify-content:space-between; margin-bottom: 15px; border-bottom: 1px solid #eee; padding-bottom: 10px;">
-                        <span style="color:#64748b; font-weight:bold; font-size:12px;">ACTIVE POWER</span>
-                        <span style="font-weight:bold; font-size:18px;"><span id="val-kw">---</span> kW</span>
-                    </div>
-                    <div style="display:flex; justify-content:space-between; margin-bottom: 15px; border-bottom: 1px solid #eee; padding-bottom: 10px;">
-                        <span style="color:#64748b; font-weight:bold; font-size:12px;">POWER FACTOR</span>
-                        <span style="font-weight:bold; font-size:18px;"><span id="val-pf">---</span></span>
-                    </div>
-                    <div style="display:flex; justify-content:space-between; padding-bottom: 10px;">
-                        <span style="color:#10B981; font-weight:bold; font-size:12px;">TOTAL ACTIVE ENERGY</span>
-                        <span style="color:#10B981; font-weight:bold; font-size:18px;"><span id="val-kwh">---</span> kWh</span>
-                    </div>
+            <div class="iso-body">
+                <div class="iso-row">
+                    <span class="iso-label">VOLTAGE L1</span>
+                    <div><span class="iso-val" id="val-v">---</span> <span class="iso-unit">V</span></div>
+                </div>
+                <div class="iso-row">
+                    <span class="iso-label">CURRENT L1</span>
+                    <div><span class="iso-val" id="val-i">---</span> <span class="iso-unit">A</span></div>
+                </div>
+                <div class="iso-row">
+                    <span class="iso-label">ACTIVE POWER</span>
+                    <div><span class="iso-val" id="val-kw">---</span> <span class="iso-unit">kW</span></div>
+                </div>
+                <div class="iso-row">
+                    <span class="iso-label">POWER FACTOR</span>
+                    <div><span class="iso-val" id="val-pf">---</span></div>
+                </div>
+                <div class="iso-row" style="background: #f8fafc; padding: 15px; border-radius: 6px; margin-top: 10px; border: 1px solid #e2e8f0;">
+                    <span class="iso-label" style="color: #0f1623;">TOTAL ACTIVE ENERGY</span>
+                    <div><span class="iso-val energy-val" id="val-kwh">---</span> <span class="iso-unit">kWh</span></div>
                 </div>
             </div>
         </div>
         
-        <br>
-        <button class="history-btn" onclick="downloadIsolatedCSV()">⬇ Download 24h CSV Report</button>
+        <button class="history-btn" onclick="downloadIsolatedCSV()">⬇ DOWNLOAD 24H CSV REPORT</button>
     </div>
 
     <script>
@@ -65,19 +76,25 @@
         // Poll Live Data Every 2 Seconds
         setInterval(async () => {
             try {
-                // Isolated machines push to the "individual_machines" bucket in the cloud
                 const res = await fetch(`/api/live_data/individual_machines`);
                 const allData = await res.json();
                 
                 if (allData[MACHINE_ID]) {
                     const d = allData[MACHINE_ID];
-                    document.getElementById('val-v').textContent = d.v_l1;
-                    document.getElementById('val-i').textContent = d.i_l1;
-                    document.getElementById('val-kw').textContent = d.kw;
-                    document.getElementById('val-pf').textContent = d.pf;
-                    document.getElementById('val-kwh').textContent = d.kwh_total;
+                    document.getElementById('val-v').textContent = d.v_l1 !== undefined ? d.v_l1 : '---';
+                    document.getElementById('val-i').textContent = d.i_l1 !== undefined ? d.i_l1 : '---';
+                    document.getElementById('val-kw').textContent = d.kw !== undefined ? d.kw : '---';
+                    document.getElementById('val-pf').textContent = d.pf !== undefined ? d.pf : '---';
+                    document.getElementById('val-kwh').textContent = d.kwh_total !== undefined ? d.kwh_total : '---';
+                    
+                    document.getElementById('conn-status').textContent = d.status === 'Online' ? '● ONLINE' : '⚠️ OFFLINE';
+                    document.getElementById('conn-status').style.color = d.status === 'Online' ? '#059669' : '#ef4444';
+                    document.getElementById('conn-status').style.background = d.status === 'Online' ? '#ecfdf5' : '#fef2f2';
                 }
-            } catch (err) { console.log("Waiting for data..."); }
+            } catch (err) { 
+                console.log("Connection lost..."); 
+                document.getElementById('conn-status').textContent = "DISCONNECTED";
+            }
         }, 2000);
 
         function downloadIsolatedCSV() {
