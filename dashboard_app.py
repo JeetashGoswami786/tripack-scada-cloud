@@ -18,12 +18,39 @@ app.add_middleware(SessionMiddleware, secret_key="tripack_super_secret_key_123")
 app.mount("/static", StaticFiles(directory="static"), name="static")
 templates = Jinja2Templates(directory="templates")
 
+# --- TIER 1: PLANT AREAS ---
 SECTIONS = {
-    "line4_lt1": {"name": "Line 4 - LT 01", "password": "pass_line4"},
-    "line4_lt2": {"name": "Line 4 - LT 02", "password": "pass_line4"},
-    "line5_sub1": {"name": "Line 5 - Substation 1", "password": "pass_line5"},
-    "line5_sub2": {"name": "Line 5 - Substation 2", "password": "pass_line5"},
-    "line5_sub3": {"name": "Line 5 - Substation 3", "password": "tripack123"},
+    "line4_lt1": {"name": "Line 4 - LT 01", "username": None, "password": "pass_line4"},
+    "line4_lt2": {"name": "Line 4 - LT 02", "username": None, "password": "pass_line4"},
+    "line5_sub1": {"name": "Line 5 - Substation 1", "username": None, "password": "pass_line5"},
+    "line5_sub2": {"name": "Line 5 - Substation 2", "username": None, "password": "pass_line5"},
+    "line5_sub3": {"name": "Line 5 - Substation 3", "username": None, "password": "tripack123"},
+    # NEW: The Master Entry for Individual Machines
+    "individual_machines": {"name": "Individual Machines", "username": "alone", "password": "machine123"},
+}
+
+# --- TIER 2: ISOLATED MACHINES ---
+INDIVIDUAL_MACHINES = {
+    "ps_5": {"name": "PS 5 (BOPP)", "username": "ps5_user", "password": "123"},
+    "ps_7": {"name": "PS 7 (BOPP)", "username": "ps7_user", "password": "123"},
+    "cpp_1": {"name": "CPP 1", "username": "cpp1_user", "password": "123"},
+    "k5_1": {"name": "K5 1 (CPP)", "username": "k5_1_user", "password": "123"},
+    "ps_4": {"name": "PS 4 (CPP)", "username": "ps4_user", "password": "123"},
+    "cpp_2": {"name": "CPP 2", "username": "cpp2_user", "password": "123"},
+    "k5_3": {"name": "K5 3 (CPP)", "username": "k5_3_user", "password": "123"},
+    "ps_6": {"name": "PS 6 (CPP)", "username": "ps6_user", "password": "123"},
+    "k5_2": {"name": "K5 2 (BOPP)", "username": "k5_2_user", "password": "123"},
+    "ss_10": {"name": "SS-10", "username": "ss10_user", "password": "123"},
+    "k5_4": {"name": "K5 4 (BOPP)", "username": "k5_4_user", "password": "123"},
+    "ss_14": {"name": "SS-14", "username": "ss14_user", "password": "123"},
+    "erema_3": {"name": "Erema 3", "username": "erema3_user", "password": "123"},
+    "erema_4": {"name": "Erema 4", "username": "erema4_user", "password": "123"},
+    "ss_04": {"name": "SS-04", "username": "ss04_user", "password": "123"},
+    "ss_12": {"name": "SS-12", "username": "ss12_user", "password": "123"},
+    "ss_13": {"name": "SS-13", "username": "ss13_user", "password": "123"},
+    "ss_08": {"name": "SS-08", "username": "ss08_user", "password": "123"},
+    "ss_09": {"name": "SS-09", "username": "ss09_user", "password": "123"},
+    "ss_11": {"name": "SS-11", "username": "ss11_user", "password": "123"},
 }
 
 LIVE_DATA = {sec_id: {} for sec_id in SECTIONS.keys()}
@@ -55,16 +82,34 @@ def init_db():
         print("Database Auto-Upgraded with kWh Support.")
     except Exception as e: print(f"DB Error: {e}")
 
+# ==========================================
+# 1. TIER 1 SECURITY (MAIN HUB)
+# ==========================================
+
 @app.get("/")
 async def serve_hub(request: Request):
     return templates.TemplateResponse(request=request, name="hub.html", context={"sections": SECTIONS})
 
 @app.post("/login/{section_id}")
-async def login_submit(request: Request, section_id: str, password: str = Form(...)):
-    if section_id in SECTIONS and password == SECTIONS[section_id]["password"]:
+async def login_submit(request: Request, section_id: str, username: str = Form(None), password: str = Form(...)):
+    if section_id not in SECTIONS:
+        return RedirectResponse(url="/", status_code=status.HTTP_303_SEE_OTHER)
+        
+    sec = SECTIONS[section_id]
+    
+    # Check if a username is required for this section
+    if sec["username"] is not None and username != sec["username"]:
+        return RedirectResponse(url="/", status_code=status.HTTP_303_SEE_OTHER)
+        
+    if password == sec["password"]:
         if "authorized" not in request.session: request.session["authorized"] = []
         if section_id not in request.session["authorized"]: request.session["authorized"].append(section_id)
+        
+        # Route to the correct destination
+        if section_id == "individual_machines":
+            return RedirectResponse(url="/machine_hub", status_code=status.HTTP_303_SEE_OTHER)
         return RedirectResponse(url=f"/dashboard/{section_id}", status_code=status.HTTP_303_SEE_OTHER)
+        
     return RedirectResponse(url="/", status_code=status.HTTP_303_SEE_OTHER)
 
 @app.get("/logout")
@@ -77,6 +122,44 @@ async def serve_dashboard(request: Request, section_id: str):
     if section_id not in SECTIONS or section_id not in request.session.get("authorized", []):
         return RedirectResponse(url="/", status_code=status.HTTP_303_SEE_OTHER)
     return templates.TemplateResponse(request=request, name="index.html", context={"section_id": section_id, "section_name": SECTIONS[section_id]["name"]})
+
+# ==========================================
+# 2. TIER 2 SECURITY (INDIVIDUAL MACHINES)
+# ==========================================
+
+@app.get("/machine_hub")
+async def serve_machine_hub(request: Request):
+    # Ensure they passed Tier 1
+    if "individual_machines" not in request.session.get("authorized", []):
+        return RedirectResponse(url="/", status_code=status.HTTP_303_SEE_OTHER)
+    return templates.TemplateResponse(request=request, name="machine_hub.html", context={"machines": INDIVIDUAL_MACHINES})
+
+@app.post("/login_machine/{machine_id}")
+async def login_machine(request: Request, machine_id: str, username: str = Form(...), password: str = Form(...)):
+    if machine_id in INDIVIDUAL_MACHINES:
+        m = INDIVIDUAL_MACHINES[machine_id]
+        if username == m["username"] and password == m["password"]:
+            if "machine_auth" not in request.session: request.session["machine_auth"] = []
+            if machine_id not in request.session["machine_auth"]: request.session["machine_auth"].append(machine_id)
+            return RedirectResponse(url=f"/isolated/{machine_id}", status_code=status.HTTP_303_SEE_OTHER)
+    # Redirect back to sub-hub if failed
+    return RedirectResponse(url="/machine_hub", status_code=status.HTTP_303_SEE_OTHER)
+
+@app.get("/isolated/{machine_id}")
+async def serve_isolated(request: Request, machine_id: str):
+    # Ensure they passed Tier 2
+    if machine_id not in INDIVIDUAL_MACHINES or machine_id not in request.session.get("machine_auth", []):
+        return RedirectResponse(url="/machine_hub", status_code=status.HTTP_303_SEE_OTHER)
+    
+    return templates.TemplateResponse(
+        request=request, 
+        name="single_machine.html", 
+        context={"machine_id": machine_id, "machine_name": INDIVIDUAL_MACHINES[machine_id]["name"]}
+    )
+
+# ==========================================
+# 3. EDGE DATA SYNCHRONIZATION
+# ==========================================
 
 @app.get("/api/live_data/{section_id}")
 async def serve_api_data(section_id: str):
@@ -110,6 +193,44 @@ def get_sql_interval(timeframe):
     intervals = {"1h": "1 HOUR", "8h": "8 HOURS", "24h": "24 HOURS", "7d": "7 DAYS", "30d": "30 DAYS"}
     return intervals.get(timeframe, "24 HOURS")
 
+# ==========================================
+# 4. SECURE ISOLATED DATA ROUTES
+# ==========================================
+
+@app.get("/api/isolated_history/{machine_id}")
+async def get_isolated_history(request: Request, machine_id: str, timeframe: str = "24h", start: str = None, end: str = None):
+    # Strict Security: Validate Cookie before serving data
+    if machine_id not in request.session.get("machine_auth", []):
+        return {"error": "Unauthorized Data Request"}
+        
+    if not DATABASE_URL: return {"error": "No db"}
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor(cursor_factory=RealDictCursor)
+        # Fetch data ONLY for this specific machine
+        query = "SELECT machine_id, EXTRACT(EPOCH FROM timestamp) * 1000 AS ts, kw, i_l1, v_l1, pf, kwh FROM scada_history WHERE machine_id = %s"
+        params = [machine_id]
+        
+        if timeframe == 'custom' and start and end:
+            query += " AND timestamp >= CAST(%s AS TIMESTAMP) AND timestamp <= CAST(%s AS TIMESTAMP)"
+            params.extend([start, end])
+        else:
+            interval_sql = get_sql_interval(timeframe)
+            query += f" AND timestamp >= NOW() - INTERVAL '{interval_sql}'"
+            
+        query += " ORDER BY timestamp ASC"
+        cur.execute(query, tuple(params))
+        rows = cur.fetchall()
+        cur.close()
+        conn.close()
+
+        history = {}
+        history[machine_id] = []
+        for row in rows:
+            history[machine_id].append({ "ts": row['ts'], "kw": row['kw'], "i_l1": row['i_l1'], "v_l1": row['v_l1'], "pf": row['pf'], "kwh": row['kwh'] })
+        return history
+    except Exception as e: return {"error": str(e)}
+
 @app.get("/api/history/{section_id}")
 async def get_history(section_id: str, timeframe: str = "24h", start: str = None, end: str = None):
     if not DATABASE_URL: return {"error": "No db"}
@@ -120,7 +241,6 @@ async def get_history(section_id: str, timeframe: str = "24h", start: str = None
         params = [section_id]
         
         if timeframe == 'custom' and start and end:
-            # Safely casts the JavaScript UTC string into a Database Timestamp
             query += " AND timestamp >= CAST(%s AS TIMESTAMP) AND timestamp <= CAST(%s AS TIMESTAMP)"
             params.extend([start, end])
         else:
@@ -151,7 +271,6 @@ async def export_csv(section_id: str, timeframe: str = "24h", start: str = None,
         params = [section_id]
         
         if timeframe == 'custom' and start and end:
-            # Safely casts the JavaScript UTC string into a Database Timestamp
             query += " AND timestamp >= CAST(%s AS TIMESTAMP) AND timestamp <= CAST(%s AS TIMESTAMP)"
             params.extend([start, end])
         else:
