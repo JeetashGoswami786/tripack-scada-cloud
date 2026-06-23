@@ -37,7 +37,7 @@ LIVE_DATA = {sec_id: {} for sec_id in SECTIONS.keys()}
 
 # --- DATABASE CONFIG ---
 DATABASE_URL = os.environ.get("DATABASE_URL")
-last_db_write = 0
+last_db_write = {sec: 0 for sec in SECTIONS.keys()}
 
 def get_db_connection():
     return psycopg2.connect(DATABASE_URL)
@@ -151,7 +151,8 @@ async def update_live_data(section_id: str, data: dict = Body(...)):
     LIVE_DATA[section_id] = data
     
     current_time = time.time()
-    if DATABASE_URL and (current_time - last_db_write >= 60):
+    # Check the specific stopwatch for the section that is pushing data
+    if DATABASE_URL and (current_time - last_db_write[section_id] >= 60):
         try:
             conn = get_db_connection()
             cur = conn.cursor()
@@ -164,7 +165,8 @@ async def update_live_data(section_id: str, data: dict = Body(...)):
             conn.commit()
             cur.close()
             conn.close()
-            last_db_write = current_time
+            # Reset this specific line's stopwatch
+            last_db_write[section_id] = current_time
         except Exception as e:
             print(f"Historian Write Error: {e}")
 
