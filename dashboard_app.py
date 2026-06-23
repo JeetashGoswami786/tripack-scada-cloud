@@ -138,14 +138,20 @@ async def serve_machine_hub(request: Request):
 async def login_machine(request: Request, machine_id: str, username: str = Form(...), password: str = Form(...)):
     if machine_id in INDIVIDUAL_MACHINES:
         m = INDIVIDUAL_MACHINES[machine_id]
-        if username == m["username"] and password == m["password"]:
-            if "machine_auth" not in request.session: request.session["machine_auth"] = []
-            if machine_id not in request.session["machine_auth"]: request.session["machine_auth"].append(machine_id)
+        
+        # BULLETPROOF FIX: Ignores accidental spaces and capital letters
+        clean_user = username.strip().lower()
+        clean_pass = password.strip()
+        
+        if clean_user == m["username"].strip().lower() and clean_pass == m["password"]:
+            if "machine_auth" not in request.session: 
+                request.session["machine_auth"] = []
+            if machine_id not in request.session["machine_auth"]: 
+                request.session["machine_auth"].append(machine_id)
             return RedirectResponse(url=f"/isolated/{machine_id}", status_code=status.HTTP_303_SEE_OTHER)
             
-    # NEW: If failed, redirect back with an ?error=1 flag in the URL
+    # Redirect back to sub-hub with error flag if failed
     return RedirectResponse(url="/machine_hub?error=1", status_code=status.HTTP_303_SEE_OTHER)
-
 
 @app.get("/isolated/{machine_id}")
 async def serve_isolated(request: Request, machine_id: str):
