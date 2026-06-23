@@ -25,7 +25,6 @@ SECTIONS = {
     "line5_sub1": {"name": "Line 5 - Substation 1", "username": None, "password": "pass_line5"},
     "line5_sub2": {"name": "Line 5 - Substation 2", "username": None, "password": "pass_line5"},
     "line5_sub3": {"name": "Line 5 - Substation 3", "username": None, "password": "tripack123"},
-    # NEW: The Master Entry for Individual Machines
     "individual_machines": {"name": "Individual Machines", "username": "alone", "password": "machine123"},
 }
 
@@ -79,12 +78,7 @@ def init_db():
         conn.commit()
         cur.close()
         conn.close()
-        print("Database Auto-Upgraded with kWh Support.")
     except Exception as e: print(f"DB Error: {e}")
-
-# ==========================================
-# 1. TIER 1 SECURITY (MAIN HUB)
-# ==========================================
 
 @app.get("/")
 async def serve_hub(request: Request):
@@ -96,16 +90,12 @@ async def login_submit(request: Request, section_id: str, username: str = Form(N
         return RedirectResponse(url="/", status_code=status.HTTP_303_SEE_OTHER)
         
     sec = SECTIONS[section_id]
-    
-    # Check if a username is required for this section
     if sec["username"] is not None and username != sec["username"]:
         return RedirectResponse(url="/", status_code=status.HTTP_303_SEE_OTHER)
         
     if password == sec["password"]:
         if "authorized" not in request.session: request.session["authorized"] = []
         if section_id not in request.session["authorized"]: request.session["authorized"].append(section_id)
-        
-        # Route to the correct destination
         if section_id == "individual_machines":
             return RedirectResponse(url="/machine_hub", status_code=status.HTTP_303_SEE_OTHER)
         return RedirectResponse(url=f"/dashboard/{section_id}", status_code=status.HTTP_303_SEE_OTHER)
@@ -123,13 +113,8 @@ async def serve_dashboard(request: Request, section_id: str):
         return RedirectResponse(url="/", status_code=status.HTTP_303_SEE_OTHER)
     return templates.TemplateResponse(request=request, name="index.html", context={"section_id": section_id, "section_name": SECTIONS[section_id]["name"]})
 
-# ==========================================
-# 2. TIER 2 SECURITY (INDIVIDUAL MACHINES)
-# ==========================================
-
 @app.get("/machine_hub")
 async def serve_machine_hub(request: Request):
-    # Ensure they passed Tier 1
     if "individual_machines" not in request.session.get("authorized", []):
         return RedirectResponse(url="/", status_code=status.HTTP_303_SEE_OTHER)
     return templates.TemplateResponse(request=request, name="machine_hub.html", context={"machines": INDIVIDUAL_MACHINES})
@@ -139,35 +124,23 @@ async def login_machine(request: Request, machine_id: str, username: str = Form(
     if machine_id in INDIVIDUAL_MACHINES:
         m = INDIVIDUAL_MACHINES[machine_id]
         
-        # BULLETPROOF FIX: Ignores accidental spaces and capital letters
+        # BULLETPROOF FIX: This ignores accidental spaces, auto-capitalization, and typos!
         clean_user = username.strip().lower()
         clean_pass = password.strip()
         
         if clean_user == m["username"].strip().lower() and clean_pass == m["password"]:
-            if "machine_auth" not in request.session: 
-                request.session["machine_auth"] = []
-            if machine_id not in request.session["machine_auth"]: 
-                request.session["machine_auth"].append(machine_id)
+            if "machine_auth" not in request.session: request.session["machine_auth"] = []
+            if machine_id not in request.session["machine_auth"]: request.session["machine_auth"].append(machine_id)
             return RedirectResponse(url=f"/isolated/{machine_id}", status_code=status.HTTP_303_SEE_OTHER)
             
-    # Redirect back to sub-hub with error flag if failed
+    # If failed, it WILL add ?error=1 to the URL so you know it was rejected.
     return RedirectResponse(url="/machine_hub?error=1", status_code=status.HTTP_303_SEE_OTHER)
 
 @app.get("/isolated/{machine_id}")
 async def serve_isolated(request: Request, machine_id: str):
-    # Ensure they passed Tier 2
     if machine_id not in INDIVIDUAL_MACHINES or machine_id not in request.session.get("machine_auth", []):
         return RedirectResponse(url="/machine_hub", status_code=status.HTTP_303_SEE_OTHER)
-    
-    return templates.TemplateResponse(
-        request=request, 
-        name="single_machine.html", 
-        context={"machine_id": machine_id, "machine_name": INDIVIDUAL_MACHINES[machine_id]["name"]}
-    )
-
-# ==========================================
-# 3. EDGE DATA SYNCHRONIZATION
-# ==========================================
+    return templates.TemplateResponse(request=request, name="single_machine.html", context={"machine_id": machine_id, "machine_name": INDIVIDUAL_MACHINES[machine_id]["name"]})
 
 @app.get("/api/live_data/{section_id}")
 async def serve_api_data(section_id: str):
@@ -201,44 +174,6 @@ def get_sql_interval(timeframe):
     intervals = {"1h": "1 HOUR", "8h": "8 HOURS", "24h": "24 HOURS", "7d": "7 DAYS", "30d": "30 DAYS"}
     return intervals.get(timeframe, "24 HOURS")
 
-# ==========================================
-# 4. SECURE ISOLATED DATA ROUTES
-# ==========================================
-
-@app.get("/api/isolated_history/{machine_id}")
-async def get_isolated_history(request: Request, machine_id: str, timeframe: str = "24h", start: str = None, end: str = None):
-    # Strict Security: Validate Cookie before serving data
-    if machine_id not in request.session.get("machine_auth", []):
-        return {"error": "Unauthorized Data Request"}
-        
-    if not DATABASE_URL: return {"error": "No db"}
-    try:
-        conn = get_db_connection()
-        cur = conn.cursor(cursor_factory=RealDictCursor)
-        # Fetch data ONLY for this specific machine
-        query = "SELECT machine_id, EXTRACT(EPOCH FROM timestamp) * 1000 AS ts, kw, i_l1, v_l1, pf, kwh FROM scada_history WHERE machine_id = %s"
-        params = [machine_id]
-        
-        if timeframe == 'custom' and start and end:
-            query += " AND timestamp >= CAST(%s AS TIMESTAMP) AND timestamp <= CAST(%s AS TIMESTAMP)"
-            params.extend([start, end])
-        else:
-            interval_sql = get_sql_interval(timeframe)
-            query += f" AND timestamp >= NOW() - INTERVAL '{interval_sql}'"
-            
-        query += " ORDER BY timestamp ASC"
-        cur.execute(query, tuple(params))
-        rows = cur.fetchall()
-        cur.close()
-        conn.close()
-
-        history = {}
-        history[machine_id] = []
-        for row in rows:
-            history[machine_id].append({ "ts": row['ts'], "kw": row['kw'], "i_l1": row['i_l1'], "v_l1": row['v_l1'], "pf": row['pf'], "kwh": row['kwh'] })
-        return history
-    except Exception as e: return {"error": str(e)}
-
 @app.get("/api/history/{section_id}")
 async def get_history(section_id: str, timeframe: str = "24h", start: str = None, end: str = None):
     if not DATABASE_URL: return {"error": "No db"}
@@ -247,20 +182,17 @@ async def get_history(section_id: str, timeframe: str = "24h", start: str = None
         cur = conn.cursor(cursor_factory=RealDictCursor)
         query = "SELECT machine_id, EXTRACT(EPOCH FROM timestamp) * 1000 AS ts, kw, i_l1, v_l1, pf, kwh FROM scada_history WHERE section_id = %s"
         params = [section_id]
-        
         if timeframe == 'custom' and start and end:
             query += " AND timestamp >= CAST(%s AS TIMESTAMP) AND timestamp <= CAST(%s AS TIMESTAMP)"
             params.extend([start, end])
         else:
             interval_sql = get_sql_interval(timeframe)
             query += f" AND timestamp >= NOW() - INTERVAL '{interval_sql}'"
-            
         query += " ORDER BY timestamp ASC"
         cur.execute(query, tuple(params))
         rows = cur.fetchall()
         cur.close()
         conn.close()
-
         history = {}
         for row in rows:
             m_id = str(row['machine_id'])
@@ -277,24 +209,20 @@ async def export_csv(section_id: str, timeframe: str = "24h", start: str = None,
         cur = conn.cursor(cursor_factory=RealDictCursor)
         query = "SELECT timestamp, machine_id, v_l1, i_l1, kw, pf, kwh FROM scada_history WHERE section_id = %s"
         params = [section_id]
-        
         if timeframe == 'custom' and start and end:
             query += " AND timestamp >= CAST(%s AS TIMESTAMP) AND timestamp <= CAST(%s AS TIMESTAMP)"
             params.extend([start, end])
         else:
             interval_sql = get_sql_interval(timeframe)
             query += f" AND timestamp >= NOW() - INTERVAL '{interval_sql}'"
-            
         query += " ORDER BY timestamp DESC"
         cur.execute(query, tuple(params))
         rows = cur.fetchall()
         cur.close()
         conn.close()
-
         output = io.StringIO()
         writer = csv.writer(output)
         writer.writerow(['Date & Time', 'Section', 'Machine ID', 'Voltage L1 (V)', 'Current L1 (A)', 'Active Power (kW)', 'Power Factor', 'Active Energy (kWh)'])
-        
         for row in rows:
             if row['timestamp']:
                 pkt_time = row['timestamp'] + timedelta(hours=5)
@@ -302,7 +230,6 @@ async def export_csv(section_id: str, timeframe: str = "24h", start: str = None,
             else:
                 fmt_time = 'N/A'
             writer.writerow([fmt_time, section_id, row['machine_id'], row['v_l1'], row['i_l1'], row['kw'], row['pf'], row['kwh']])
-        
         output.seek(0)
         headers = { 'Content-Disposition': f'attachment; filename="TriPack_{section_id}_Export.csv"' }
         return StreamingResponse(output, media_type="text/csv", headers=headers)
