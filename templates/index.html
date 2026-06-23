@@ -211,13 +211,7 @@
             {id: 31, name: "UTILITES 1Q29 F101-B (MCC-09)"}
         ];
 
-        // Inject Sidebar Links
-        const list = document.getElementById('machine-list');
-        machines.forEach(m => {
-            let li = document.createElement('li');
-            li.innerHTML = `<a href="#machine-${m.id}">${m.name}</a>`;
-            list.appendChild(li);
-        });
+        
         const CURRENT_SECTION = "{{ section_id }}";
     </script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js">
