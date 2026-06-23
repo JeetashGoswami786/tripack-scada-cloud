@@ -109,7 +109,11 @@ function getPanelHTML(m) {
                 
                 <div class="data-row"><span class="data-label">Active Power</span><div class="data-value-group"><span class="data-value" id="kw-${m.id}">---</span><span class="data-unit">kW</span></div></div>
                 <div class="data-bar"><div class="data-bar-fill bar-power" id="kwbar-${m.id}" style="width:0"></div></div>
-                
+
+                <div class="data-row">
+                    <span class="data-label">ACTIVE ENERGY</span>
+                    <span class="data-value"><span id="kwh-${machine.id}">---</span> <span class="unit">kWh</span></span>
+                </div>
                 <div class="data-row"><span class="data-label">Frequency</span><div class="data-value-group"><span class="data-value" id="freq-${m.id}">50.0</span><span class="data-unit">Hz</span></div></div>
             </div>
             <div class="gauge-column">${makeSVG(m.id)}</div>
