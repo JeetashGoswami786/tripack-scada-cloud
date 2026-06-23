@@ -153,7 +153,7 @@ async function fetchHistoryData() {
     const timeframe = document.getElementById('hist-timeframe').value; // Get the selected time
     
     try {
-        const res = await fetch(`/api/history?timeframe=${timeframe}`);
+        const res = await fetch(`/api/history/${CURRENT_SECTION}?timeframe=${timeframe}`);
         rawHistoryData = await res.json();
         document.getElementById('hist-loader').style.display = 'none';
         renderHistoryChart();
@@ -167,7 +167,7 @@ async function fetchHistoryData() {
 function downloadCSV() {
     const timeframe = document.getElementById('hist-timeframe').value;
     // Tell the browser to download the file directly from our Python route
-    window.location.href = `/api/export_csv?timeframe=${timeframe}`;
+    window.location.href = `/api/export_csv/${CURRENT_SECTION}?timeframe=${timeframe}`;
 }
 
 function downloadPDF() {
@@ -255,7 +255,7 @@ function renderHistoryChart() {
 // ─── DASHBOARD BUILDER ──────────────────────────────────────
 async function initDashboard() {
     try {
-        const response = await fetch('/static/data/machines.json');
+        const response = await fetch(`/static/data/machines_${CURRENT_SECTION}.json`);
         masterMachineList = await response.json();
         
         const grid = document.getElementById('machine-grid');
@@ -300,7 +300,7 @@ async function initDashboard() {
 async function startPolling() {
     setInterval(async () => {
         try {
-            const res = await fetch('/api/live_data');
+            const res = await fetch(`/api/live_data/${CURRENT_SECTION}`);
             const data = await res.json();
             
             for (const [id, d] of Object.entries(data)) {
