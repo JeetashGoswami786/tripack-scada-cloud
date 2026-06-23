@@ -1,12 +1,17 @@
 /* ============================================================
-   SCADA ENGINE v5.1 — Master Integration
+   SCADA ENGINE v6.0 — Enterprise with History Module
    ============================================================ */
 
 // ─── GLOBAL STATE ───────────────────────────────────────────
 const machineCharts = {};
 const prevValues = {};
 const MAX_PTS = 25;
-let startTime = new Date(); // This starts the uptime counter!
+let startTime = new Date();
+
+// History Module State
+let masterHistoryChart = null;
+let rawHistoryData = {};
+let masterMachineList = [];
 
 // ─── LIVE CLOCK & UPTIME ─────────────────────────────────────
 function tickClock() {
@@ -130,36 +135,132 @@ function initChart(id) {
     });
 }
 
+// ─── TAB SWITCHING & HISTORY MODULE ─────────────────────────
+function switchTab(tabName) {
+    // UI Toggles
+    document.getElementById('tab-live').classList.toggle('active', tabName === 'live');
+    document.getElementById('tab-history').classList.toggle('active', tabName === 'history');
+    
+    document.getElementById('view-live').style.display = tabName === 'live' ? 'block' : 'none';
+    document.getElementById('view-history').style.display = tabName === 'history' ? 'block' : 'none';
+
+    // Fetch history only when the tab is clicked to save network bandwidth
+    if (tabName === 'history') {
+        fetchHistoryData();
+    }
+}
+
+async function fetchHistoryData() {
+    document.getElementById('hist-loader').style.display = 'block';
+    try {
+        const res = await fetch('/api/history');
+        rawHistoryData = await res.json();
+        document.getElementById('hist-loader').style.display = 'none';
+        renderHistoryChart();
+    } catch (err) {
+        console.error("Failed to load history:", err);
+        document.getElementById('hist-loader').textContent = "Error loading data.";
+    }
+}
+
+function renderHistoryChart() {
+    const param = document.getElementById('hist-param').value;
+    const ctx = document.getElementById('master-history-chart').getContext('2d');
+    
+    // Find which checkboxes are checked
+    const selectedIds = Array.from(document.querySelectorAll('.hist-checkbox:checked')).map(cb => cb.value);
+    
+    const datasets = [];
+    const colors = ['#008FD5', '#EF4444', '#10B981', '#F59E0B', '#8B5CF6']; // Color palette for multiple lines
+    let colorIdx = 0;
+
+    selectedIds.forEach(id => {
+        if (!rawHistoryData[id]) return;
+
+        // Find machine name for the legend
+        const mObj = masterMachineList.find(m => m.id == id);
+        const name = mObj ? mObj.name : `Unit ${id}`;
+
+        const dataPoints = rawHistoryData[id].map(entry => ({
+            x: new Date(entry.ts),
+            y: entry[param]
+        }));
+
+        datasets.push({
+            label: name,
+            data: dataPoints,
+            borderColor: colors[colorIdx % colors.length],
+            borderWidth: 2,
+            pointRadius: 0,
+            tension: 0.2,
+            fill: false
+        });
+        colorIdx++;
+    });
+
+    if (masterHistoryChart) {
+        masterHistoryChart.destroy();
+    }
+
+    masterHistoryChart = new Chart(ctx, {
+        type: 'line',
+        data: { datasets: datasets },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                x: { 
+                    type: 'time', 
+                    time: { tooltipFormat: 'dd MMM, HH:mm' },
+                    grid: { display: false }
+                },
+                y: { beginAtZero: true }
+            },
+            plugins: {
+                legend: { position: 'top', align: 'end' },
+                tooltip: { mode: 'index', intersect: false }
+            }
+        }
+    });
+}
+
+
 // ─── DASHBOARD BUILDER ──────────────────────────────────────
 async function initDashboard() {
     try {
         const response = await fetch('/static/data/machines.json');
-        const machines = await response.json();
+        masterMachineList = await response.json();
         
         const grid = document.getElementById('machine-grid');
         const sidebar = document.getElementById('machine-list');
+        const histSelectors = document.getElementById('hist-machine-selectors');
         
         let gridHTML = ''; 
+        let histHTML = '';
 
-        machines.forEach(m => {
-            // BULLETPROOF SCROLLING
+        masterMachineList.forEach((m, idx) => {
+            // Sidebar Scroll Links
             const li = document.createElement('li');
-            li.innerHTML = `<a href="#" onclick="event.preventDefault(); document.getElementById('panel-${m.id}').scrollIntoView({behavior: 'smooth', block: 'start'});">${m.name}</a>`;
+            li.innerHTML = `<a href="#" onclick="event.preventDefault(); document.getElementById('panel-${m.id}').scrollIntoView({behavior: 'smooth', block: 'start'}); switchTab('live');">${m.name}</a>`;
             sidebar.appendChild(li);
+
+            // History View Checkboxes (Check the first two by default)
+            const isChecked = idx < 2 ? 'checked' : '';
+            histHTML += `<label><input type="checkbox" class="hist-checkbox" value="${m.id}" ${isChecked} onchange="renderHistoryChart()"> ${m.name}</label>`;
 
             // Add panel HTML to string
             gridHTML += getPanelHTML(m);
         });
 
-        // Push all HTML to grid at once
         grid.innerHTML = gridHTML;
+        histSelectors.innerHTML = histHTML;
 
-        // DESTROY THE GHOST LOADER
+        // Destroy ghost loader
         const loader = document.getElementById('loading-state') || document.querySelector('.loading-state');
         if (loader) loader.remove();
 
-        // Initialize Charts AFTER HTML is on the page
-        machines.forEach(m => {
+        // Initialize Live Charts
+        masterMachineList.forEach(m => {
             initChart(m.id);
             prevValues[m.id] = { v: 0, i: 0, kw: 0, pf: 0 };
         });
@@ -177,7 +278,7 @@ async function startPolling() {
             
             for (const [id, d] of Object.entries(data)) {
                 const vEl = document.getElementById(`v-${id}`);
-                if (!vEl) continue; // Safety check
+                if (!vEl) continue;
                 
                 const prev = prevValues[id];
                 const newV = parseFloat(d.v_l1) || 0;
@@ -188,7 +289,6 @@ async function startPolling() {
                 document.getElementById(`pf-${id}`).textContent = parseFloat(d.pf).toFixed(2);
                 document.getElementById(`kw-${id}`).textContent = newKW.toFixed(1);
                 
-                // Animate progress bars
                 document.getElementById(`vbar-${id}`).style.width = Math.min((newV / 250) * 100, 100) + '%';
                 document.getElementById(`pfbar-${id}`).style.width = (parseFloat(d.pf) * 100) + '%';
                 document.getElementById(`kwbar-${id}`).style.width = Math.min((newKW / 50) * 100, 100) + '%';
@@ -208,5 +308,10 @@ async function startPolling() {
         } catch (err) { console.warn("Polling offline..."); }
     }, 2000);
 }
+
+// Ensure Chart.js Time Adapter is loaded for the History Chart to work
+const script = document.createElement('script');
+script.src = 'https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns/dist/chartjs-adapter-date-fns.bundle.min.js';
+document.head.appendChild(script);
 
 document.addEventListener('DOMContentLoaded', initDashboard);
