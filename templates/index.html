@@ -106,13 +106,13 @@
 
     <div class="page-wrapper">
         
-        
+        <div class="sidebar" id="sidebar">
+            <div class="sidebar-header">MACHINE DIRECTORY</div>
             <ul class="sidebar-list" id="machine-list">
                 </ul>
-        
+        </div>
 
         <main class="main-view">
-            
             <div class="view-tabs">
                 <button class="tab-btn active" id="tab-live" onclick="switchTab('live')">Live Dashboard</button>
                 <button class="tab-btn" id="tab-history" onclick="switchTab('history')">Historical Analysis</button>
@@ -132,18 +132,25 @@
                             <option value="v_l1">Voltage (V)</option>
                             <option value="i_l1">Current (A)</option>
                             <option value="pf">Power Factor</option>
+                            <option value="kwh">Active Energy (kWh)</option>
                         </select>
                     </div>
                     
                     <div class="control-group">
                         <label>TIME RANGE</label>
-                        <select id="hist-timeframe" onchange="fetchHistoryData()">
+                        <select id="hist-timeframe" onchange="toggleCustomDates(); fetchHistoryData()">
                             <option value="1h">Last Hour</option>
                             <option value="8h">Last Shift (8 Hours)</option>
                             <option value="24h" selected>Last Day (24 Hours)</option>
                             <option value="7d">Last Week (7 Days)</option>
                             <option value="30d">Last Month (30 Days)</option>
+                            <option value="custom">Custom Date & Time</option>
                         </select>
+                        <div id="custom-date-pickers" style="display: none; margin-top: 10px; gap: 10px; flex-direction: column;">
+                            <input type="datetime-local" id="hist-start" style="background: #0f1623; color: white; border: 1px solid #2C4A6E; padding: 8px; border-radius: 4px; color-scheme: dark;">
+                            <input type="datetime-local" id="hist-end" style="background: #0f1623; color: white; border: 1px solid #2C4A6E; padding: 8px; border-radius: 4px; color-scheme: dark;">
+                            <button onclick="fetchHistoryData()" style="background: #008FD5; color: white; border: none; padding: 8px; border-radius: 4px; cursor: pointer; font-weight: bold;">Apply Range</button>
+                        </div>
                     </div>
 
                     <div class="control-group">
@@ -162,11 +169,10 @@
                 </div>
                 
                 <div class="master-chart-container">
-                    <div class="loading-history" id="hist-loader" style="display: none;">Fetching 24h Cloud Data...</div>
+                    <div class="loading-history" id="hist-loader" style="display: none;">Fetching Cloud Data...</div>
                     <canvas id="master-history-chart"></canvas>
                 </div>
             </div>
-
         </main>
     </div>
 
