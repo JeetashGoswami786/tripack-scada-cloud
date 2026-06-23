@@ -163,19 +163,34 @@ async function fetchHistoryData() {
     document.getElementById('hist-loader').style.display = 'block';
     const timeframe = document.getElementById('hist-timeframe').value;
     
-    // Build the Cloud Request URL
     let url = `/api/history/${CURRENT_SECTION}?timeframe=${timeframe}`;
     
-    // Add custom start/end dates if needed
+    // NEW CUSTOM DATE LOGIC
     if (timeframe === 'custom') {
-        const start = document.getElementById('hist-start').value;
-        const end = document.getElementById('hist-end').value;
-        if (!start || !end) {
+        const startVal = document.getElementById('hist-start').value;
+        const endVal = document.getElementById('hist-end').value;
+        
+        if (!startVal || !endVal) {
             alert("Please select both a Start and End date.");
             document.getElementById('hist-loader').style.display = 'none';
             return;
         }
-        url += `&start=${start}&end=${end}`;
+        
+        const startDate = new Date(startVal);
+        const endDate = new Date(endVal);
+        
+        // Safety Check: Prevent Zero-Minute or Backwards requests
+        if (startDate >= endDate) {
+            alert("⚠️ Invalid Range: End Date must be LATER than the Start Date!");
+            document.getElementById('hist-loader').style.display = 'none';
+            return;
+        }
+
+        // Convert local Pakistan time to Universal Cloud Time (UTC)
+        const startUTC = startDate.toISOString();
+        const endUTC = endDate.toISOString();
+        
+        url += `&start=${encodeURIComponent(startUTC)}&end=${encodeURIComponent(endUTC)}`;
     }
     
     try {
@@ -189,19 +204,29 @@ async function fetchHistoryData() {
     }
 }
 
-// --- EXPORT FUNCTIONS ---
 function downloadCSV() {
     const timeframe = document.getElementById('hist-timeframe').value;
     let url = `/api/export_csv/${CURRENT_SECTION}?timeframe=${timeframe}`;
     
     if (timeframe === 'custom') {
-        const start = document.getElementById('hist-start').value;
-        const end = document.getElementById('hist-end').value;
-        if (!start || !end) {
+        const startVal = document.getElementById('hist-start').value;
+        const endVal = document.getElementById('hist-end').value;
+        
+        if (!startVal || !endVal) {
             alert("Please select both a Start and End date to export.");
             return;
         }
-        url += `&start=${start}&end=${end}`;
+        
+        const startDate = new Date(startVal);
+        const endDate = new Date(endVal);
+        
+        if (startDate >= endDate) {
+            alert("⚠️ Invalid Range: End Date must be LATER than the Start Date!");
+            return;
+        }
+
+        // Convert local Pakistan time to Universal Cloud Time (UTC)
+        url += `&start=${encodeURIComponent(startDate.toISOString())}&end=${encodeURIComponent(endDate.toISOString())}`;
     }
     window.location.href = url;
 }
