@@ -61,5 +61,21 @@
             document.getElementById('login-modal').classList.add('active');
         }
     </script>
+<script>
+        function openLogin(machineId, machineName) {
+            document.getElementById('modal-title').textContent = machineName;
+            document.getElementById('login-form').action = "/login_machine/" + machineId;
+            document.getElementById('login-modal').classList.add('active');
+        }
+
+        // NEW: Check for Access Denied
+        window.onload = function() {
+            const urlParams = new URLSearchParams(window.location.search);
+            if (urlParams.get('error')) {
+                alert("❌ ACCESS DENIED: Incorrect Username or Password for this machine.");
+                window.history.replaceState(null, '', window.location.pathname); // Clean the URL
+            }
+        }
+    </script>    
 </body>
 </html>
