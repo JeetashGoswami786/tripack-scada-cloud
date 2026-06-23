@@ -95,16 +95,17 @@ async def login_submit(request: Request, section_id: str, username: str = Form(N
     if section_id not in SECTIONS:
         return RedirectResponse(url="/", status_code=status.HTTP_303_SEE_OTHER)
         
+    # --- FIX START ---
+    # Convert empty strings "" to None so the server treats them as "No Username"
+    if username is not None and username.strip() == "":
+        username = None
+    # --- FIX END ---
+        
     sec = SECTIONS[section_id]
     
-    # DEBUGGING: See what the server receives
-    print(f"DEBUG: Login Attempt for {section_id}")
-    print(f"DEBUG: Input User: '{username}' | Expected User: '{sec.get('username')}'")
-    
-    # LOGIC FIX: Check username only if the section specifically has a username defined
+    # Check username ONLY if the section requires one (like "individual_machines")
     if sec.get("username"): 
         if username is None or username.strip().lower() != sec["username"].strip().lower():
-            print("DEBUG: Username check failed.")
             return RedirectResponse(url="/?error=1", status_code=status.HTTP_303_SEE_OTHER)
             
     # Check password
@@ -114,13 +115,10 @@ async def login_submit(request: Request, section_id: str, username: str = Form(N
         if section_id not in request.session["authorized"]: 
             request.session["authorized"].append(section_id)
             
-        print(f"DEBUG: Login Success for {section_id}. Redirecting...")
-        
         if section_id == "individual_machines":
             return RedirectResponse(url="/machine_hub", status_code=status.HTTP_303_SEE_OTHER)
         return RedirectResponse(url=f"/dashboard/{section_id}", status_code=status.HTTP_303_SEE_OTHER)
         
-    print("DEBUG: Password check failed.")
     return RedirectResponse(url="/?error=1", status_code=status.HTTP_303_SEE_OTHER)
 
 @app.get("/logout")
