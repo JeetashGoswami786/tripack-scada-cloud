@@ -175,8 +175,8 @@ async def export_csv(timeframe: str = "24h"):
         writer.writerow(['Date & Time', 'Machine ID', 'Voltage L1 (V)', 'Current L1 (A)', 'Active Power (kW)', 'Power Factor'])
         
         for row in rows:
-            # FIX: Force strict time formatting so Excel cannot misinterpret it
-            fmt_time = row['timestamp'].strftime('%Y-%m-%d %H:%M:%S') if row['timestamp'] else 'N/A'
+            # FIX: Formatted as "23-Jun-2026 10:35:42 AM" so Excel cannot ruin it
+            fmt_time = row['timestamp'].strftime('%d-%b-%Y %I:%M:%S %p') if row['timestamp'] else 'N/A'
             writer.writerow([fmt_time, row['machine_id'], row['v_l1'], row['i_l1'], row['kw'], row['pf']])
         
         output.seek(0)
