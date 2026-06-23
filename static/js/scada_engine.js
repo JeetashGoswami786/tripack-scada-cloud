@@ -161,10 +161,25 @@ function switchTab(tabName) {
 
 async function fetchHistoryData() {
     document.getElementById('hist-loader').style.display = 'block';
-    const timeframe = document.getElementById('hist-timeframe').value; // Get the selected time
+    const timeframe = document.getElementById('hist-timeframe').value;
+    
+    // Build the Cloud Request URL
+    let url = `/api/history/${CURRENT_SECTION}?timeframe=${timeframe}`;
+    
+    // Add custom start/end dates if needed
+    if (timeframe === 'custom') {
+        const start = document.getElementById('hist-start').value;
+        const end = document.getElementById('hist-end').value;
+        if (!start || !end) {
+            alert("Please select both a Start and End date.");
+            document.getElementById('hist-loader').style.display = 'none';
+            return;
+        }
+        url += `&start=${start}&end=${end}`;
+    }
     
     try {
-        const res = await fetch(`/api/history/${CURRENT_SECTION}?timeframe=${timeframe}`);
+        const res = await fetch(url);
         rawHistoryData = await res.json();
         document.getElementById('hist-loader').style.display = 'none';
         renderHistoryChart();
@@ -177,8 +192,18 @@ async function fetchHistoryData() {
 // --- EXPORT FUNCTIONS ---
 function downloadCSV() {
     const timeframe = document.getElementById('hist-timeframe').value;
-    // Tell the browser to download the file directly from our Python route
-    window.location.href = `/api/export_csv/${CURRENT_SECTION}?timeframe=${timeframe}`;
+    let url = `/api/export_csv/${CURRENT_SECTION}?timeframe=${timeframe}`;
+    
+    if (timeframe === 'custom') {
+        const start = document.getElementById('hist-start').value;
+        const end = document.getElementById('hist-end').value;
+        if (!start || !end) {
+            alert("Please select both a Start and End date to export.");
+            return;
+        }
+        url += `&start=${start}&end=${end}`;
+    }
+    window.location.href = url;
 }
 
 function downloadPDF() {
@@ -262,6 +287,11 @@ function renderHistoryChart() {
     });
 }
 
+// --- NEW LOGIC TO SHOW/HIDE CUSTOM DATES ---
+function toggleCustomDates() {
+    const tf = document.getElementById('hist-timeframe').value;
+    document.getElementById('custom-date-pickers').style.display = tf === 'custom' ? 'flex' : 'none';
+}
 
 // ─── DASHBOARD BUILDER ──────────────────────────────────────
 async function initDashboard() {
@@ -277,27 +307,22 @@ async function initDashboard() {
         let histHTML = '';
 
         masterMachineList.forEach((m, idx) => {
-            // Sidebar Scroll Links
             const li = document.createElement('li');
-            li.innerHTML = `<a href="#" onclick="event.preventDefault(); document.getElementById('panel-${m.id}').scrollIntoView({behavior: 'smooth', block: 'start'}); switchTab('live');">${m.name}</a>`;
+            // FIX: The Scroll Glitch is solved here using setTimeout
+            li.innerHTML = `<a href="#" onclick="event.preventDefault(); switchTab('live'); setTimeout(() => document.getElementById('panel-${m.id}').scrollIntoView({behavior: 'smooth', block: 'start'}), 50);">${m.name}</a>`;
             sidebar.appendChild(li);
 
-            // History View Checkboxes (Check the first two by default)
             const isChecked = idx < 2 ? 'checked' : '';
             histHTML += `<label><input type="checkbox" class="hist-checkbox" value="${m.id}" ${isChecked} onchange="renderHistoryChart()"> ${m.name}</label>`;
-
-            // Add panel HTML to string
             gridHTML += getPanelHTML(m);
         });
 
         grid.innerHTML = gridHTML;
         histSelectors.innerHTML = histHTML;
 
-        // Destroy ghost loader
         const loader = document.getElementById('loading-state') || document.querySelector('.loading-state');
         if (loader) loader.remove();
 
-        // Initialize Live Charts
         masterMachineList.forEach(m => {
             initChart(m.id);
             prevValues[m.id] = { v: 0, i: 0, kw: 0, pf: 0 };
