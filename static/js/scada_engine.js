@@ -137,14 +137,12 @@ function initChart(id) {
 
 // ─── TAB SWITCHING & HISTORY MODULE ─────────────────────────
 function switchTab(tabName) {
-    // UI Toggles
     document.getElementById('tab-live').classList.toggle('active', tabName === 'live');
     document.getElementById('tab-history').classList.toggle('active', tabName === 'history');
     
     document.getElementById('view-live').style.display = tabName === 'live' ? 'block' : 'none';
     document.getElementById('view-history').style.display = tabName === 'history' ? 'block' : 'none';
 
-    // Fetch history only when the tab is clicked to save network bandwidth
     if (tabName === 'history') {
         fetchHistoryData();
     }
@@ -152,8 +150,10 @@ function switchTab(tabName) {
 
 async function fetchHistoryData() {
     document.getElementById('hist-loader').style.display = 'block';
+    const timeframe = document.getElementById('hist-timeframe').value; // Get the selected time
+    
     try {
-        const res = await fetch('/api/history');
+        const res = await fetch(`/api/history?timeframe=${timeframe}`);
         rawHistoryData = await res.json();
         document.getElementById('hist-loader').style.display = 'none';
         renderHistoryChart();
@@ -161,6 +161,28 @@ async function fetchHistoryData() {
         console.error("Failed to load history:", err);
         document.getElementById('hist-loader').textContent = "Error loading data.";
     }
+}
+
+// --- EXPORT FUNCTIONS ---
+function downloadCSV() {
+    const timeframe = document.getElementById('hist-timeframe').value;
+    // Tell the browser to download the file directly from our Python route
+    window.location.href = `/api/export_csv?timeframe=${timeframe}`;
+}
+
+function downloadPDF() {
+    const element = document.querySelector('.master-chart-container');
+    const tfLabel = document.getElementById('hist-timeframe').options[document.getElementById('hist-timeframe').selectedIndex].text;
+    
+    const opt = {
+        margin:       0.5,
+        filename:     `SCADA_Report_${tfLabel}.pdf`,
+        image:        { type: 'jpeg', quality: 0.98 },
+        html2canvas:  { scale: 2, backgroundColor: '#ffffff' }, // Forces white background for the PDF
+        jsPDF:        { unit: 'in', format: 'letter', orientation: 'landscape' }
+    };
+    
+    html2pdf().set(opt).from(element).save();
 }
 
 function renderHistoryChart() {
