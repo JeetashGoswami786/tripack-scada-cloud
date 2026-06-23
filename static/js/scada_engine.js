@@ -351,5 +351,9 @@ async function startPolling() {
 const script = document.createElement('script');
 script.src = 'https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns/dist/chartjs-adapter-date-fns.bundle.min.js';
 document.head.appendChild(script);
-
-document.addEventListener('DOMContentLoaded', initDashboard);
+// Add this to the very bottom of scada_engine.js
+document.addEventListener('DOMContentLoaded', async () => {
+    console.log("Initializing Dashboard for:", CURRENT_SECTION);
+    await init(); // This builds the cards
+    startPolling(); // This starts the live data loop
+});
