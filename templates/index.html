@@ -87,16 +87,41 @@
         </nav>
 
         <main class="main-view">
-            <div class="grid-container" id="machine-grid">
-                </div>
-        </main>
             
-            <div class="grid-container" id="machine-grid">
-                <div class="loading-state" id="loading-state">
-                    <div class="loading-spinner"></div>
-                    <span class="loading-text">Establishing Modbus TCP Handshake...</span>
+            <div class="view-tabs">
+                <button class="tab-btn active" id="tab-live" onclick="switchTab('live')">Live Dashboard</button>
+                <button class="tab-btn" id="tab-history" onclick="switchTab('history')">Historical Analysis</button>
+            </div>
+
+            <div id="view-live" class="view-section active">
+                <div class="grid-container" id="machine-grid">
+                    </div>
+            </div>
+
+            <div id="view-history" class="view-section" style="display: none;">
+                <div class="history-controls">
+                    <div class="control-group">
+                        <label>PARAMETER</label>
+                        <select id="hist-param" onchange="renderHistoryChart()">
+                            <option value="kw">Active Power (kW)</option>
+                            <option value="v_l1">Voltage (V)</option>
+                            <option value="i_l1">Current (A)</option>
+                            <option value="pf">Power Factor</option>
+                        </select>
+                    </div>
+                    <div class="control-group">
+                        <label>COMPARE MACHINES</label>
+                        <div id="hist-machine-selectors" class="machine-checkbox-grid">
+                            </div>
+                    </div>
+                </div>
+                
+                <div class="master-chart-container">
+                    <div class="loading-history" id="hist-loader" style="display: none;">Fetching 24h Cloud Data...</div>
+                    <canvas id="master-history-chart"></canvas>
                 </div>
             </div>
+
         </main>
     </div>
 
