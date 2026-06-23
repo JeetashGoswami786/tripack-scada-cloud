@@ -1,0 +1,20 @@
+[
+            {"id": 1, "name": "INCOMING QM1 LVP-04"},
+            {"id": 2, "name": "Bus Coupler"},
+            {"id": 3, "name": "1Q6 F95 (SMDB-L2)"},
+            {"id": 4, "name": "1Q5 F62 (SB-2)"},
+            {"id": 5, "name": "1Q4 F63 (SB-2 Fan & Lights)"},
+            {"id": 6, "name": "1Q12 F33 (MDO)"},
+            {"id": 7, "name": "1Q11 (Boiler L4)"},
+            {"id": 8, "name": "Spare"},
+            {"id": 9, "name": "1Q13 F34 (SB-02 MDO)"},
+            {"id": 10, "name": "Q3 Spare"},
+            {"id": 11, "name": "Q2 F53 (Pull Roll)"},
+            {"id": 12, "name": "F23 (cox 3)"},
+            {"id": 13, "name": "F36 (TDO)"},
+            {"id": 14, "name": "F38 (TDO)"},
+            {"id": 15, "name": "INCOMING QM3 LVP-05"},
+            {"id": 16, "name": "1Q19 (Daikool - 1)"},
+            {"id": 17, "name": "1Q7 F96 (SMDB-P2)"},
+            {"id": 18, "name": "1Q8 F31 (Casting Unit)"}
+        ]
