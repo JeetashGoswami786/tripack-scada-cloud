@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TriPack Online EnergyPC</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
+    <style>
+        body {
+            background-color: #f0f4f8; /* Clean Light Theme */
+            font-family: 'Inter', sans-serif;
+            margin: 0;
+            padding: 0;
+            color: #1a2332;
+        }
+        .header {
+            background-color: #008FD5; /* TriPack Blue */
+            color: white;
+            padding: 25px 40px;
+            text-align: center;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        .header h1 {
+            margin: 0;
+            font-size: 32px;
+            letter-spacing: 1px;
+            font-weight: 800;
+        }
+        .header p {
+            margin: 8px 0 0 0;
+            font-size: 15px;
+            opacity: 0.9;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+        }
+        .grid-container {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+            gap: 25px;
+            padding: 50px;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        .card {
+            background: white;
+            border-radius: 8px;
+            padding: 35px 20px;
+            text-align: center;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.05);
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+            border-top: 5px solid #008FD5;
+        }
+        .card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 25px rgba(0,85,150,0.15);
+        }
+        .card h2 {
+            margin: 0;
+            font-size: 22px;
+            color: #2C4A6E;
+        }
+        .card .status {
+            margin-top: 15px;
+            display: inline-block;
+            padding: 5px 15px;
+            background: #e0f2fe;
+            color: #0284c7;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 700;
+        }
+
+        /* --- Password Modal Styles --- */
+        .modal-overlay {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.5);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            backdrop-filter: blur(5px);
+        }
+        .modal-overlay.active {
+            display: flex;
+        }
+        .modal-box {
+            background: white;
+            padding: 35px;
+            border-radius: 8px;
+            width: 100%;
+            max-width: 400px;
+            box-shadow: 0 15px 35px rgba(0,0,0,0.2);
+            text-align: center;
+        }
+        .modal-box h3 {
+            margin-top: 0;
+            color: #2C4A6E;
+            font-size: 24px;
+        }
+        .modal-box input[type="password"] {
+            width: 85%;
+            padding: 15px;
+            margin: 20px 0;
+            border: 2px solid #cbd5e1;
+            border-radius: 6px;
+            font-size: 16px;
+            font-family: 'Inter';
+            text-align: center;
+            letter-spacing: 2px;
+        }
+        .modal-box input[type="password"]:focus {
+            outline: none;
+            border-color: #008FD5;
+        }
+        .modal-btn {
+            background: #008FD5;
+            color: white;
+            border: none;
+            padding: 15px 25px;
+            border-radius: 6px;
+            font-weight: 700;
+            cursor: pointer;
+            width: 100%;
+            font-size: 16px;
+            transition: 0.2s;
+        }
+        .modal-btn:hover {
+            background: #006FAD;
+        }
+        .close-btn {
+            background: none;
+            border: none;
+            color: #94a3b8;
+            cursor: pointer;
+            font-size: 14px;
+            margin-top: 20px;
+            font-weight: 600;
+        }
+        .close-btn:hover {
+            color: #ef4444;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="header">
+        <h1>TriPack Online EnergyPC</h1>
+        <p>Master Plant-Wide SCADA Portal</p>
+    </div>
+
+    <div class="grid-container">
+        {% for sec_id, sec_data in sections.items() %}
+        <div class="card" onclick="openLogin('{{ sec_id }}', '{{ sec_data.name }}')">
+            <h2>{{ sec_data.name }}</h2>
+            <span class="status">● Encrypted Node</span>
+        </div>
+        {% endfor %}
+    </div>
+
+    <div class="modal-overlay" id="login-modal">
+        <div class="modal-box">
+            <h3 id="modal-title">Enter Password</h3>
+            <p style="font-size: 13px; color: #64748b; margin-top: -10px;">Authorized personnel only.</p>
+            <form id="login-form" method="POST" action="">
+                <input type="password" name="password" placeholder="••••••••" required>
+                <br>
+                <button type="submit" class="modal-btn">UNLOCK DASHBOARD</button>
+            </form>
+            <button class="close-btn" onclick="closeLogin()">Cancel</button>
+        </div>
+    </div>
+
+    <script>
+        function openLogin(sectionId, sectionName) {
+            document.getElementById('modal-title').textContent = sectionName;
+            // Dynamically change the form submission URL based on which card was clicked
+            document.getElementById('login-form').action = "/login/" + sectionId;
+            document.getElementById('login-modal').classList.add('active');
+        }
+
+        function closeLogin() {
+            document.getElementById('login-modal').classList.remove('active');
+        }
+    </script>
+</body>
+</html>
