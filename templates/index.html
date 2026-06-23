@@ -21,6 +21,12 @@
             flex-direction: column;
             scroll-behavior: smooth; /* Essential for Anchor Scrolling */
         }
+        .history-controls { display: grid; grid-template-columns: auto auto auto; gap: 20px; align-items: start; background: #1a2332; padding: 20px; border-radius: 8px; margin-bottom: 20px; border: 1px solid #2C4A6E; }
+        .export-btn { padding: 9px 15px; border: none; border-radius: 4px; font-weight: 600; cursor: pointer; transition: 0.2s; font-family: 'Inter'; font-size: 13px; color: white; }
+        .export-btn.csv { background: #10B981; }
+        .export-btn.csv:hover { background: #059669; }
+        .export-btn.pdf { background: #EF4444; }
+        .export-btn.pdf:hover { background: #DC2626; }
 
         /* Layout Wrappers */
         .page-wrapper { display: flex; flex: 1; overflow: hidden; }
@@ -129,20 +135,30 @@
                             <option value="pf">Power Factor</option>
                         </select>
                     </div>
-                    <div class="control-group">
-                        <label>COMPARE MACHINES</label>
-                        <div id="hist-machine-selectors" class="machine-checkbox-grid">
-                            </div>
-                    </div>
-                    <div class="control-group">
-                        <label>COMPARE MACHINES</label>
-                        <div id="hist-machine-selectors" class="machine-checkbox-grid">
-                            </div>
-                    </div>
                     
-                    <div class="export-actions" style="margin-top: 20px; padding-top: 15px; border-top: 1px solid #2C4A6E; display: flex; gap: 15px;">
-                        <button onclick="exportToCSV()" class="tab-btn" style="background: #10B981; color: white;">📥 Export to Excel (CSV)</button>
-                        <button onclick="exportChartImage()" class="tab-btn" style="background: #8B5CF6; color: white;">🖼️ Save Chart as Image</button>
+                    <div class="control-group">
+                        <label>TIME RANGE</label>
+                        <select id="hist-timeframe" onchange="fetchHistoryData()">
+                            <option value="1h">Last Hour</option>
+                            <option value="8h">Last Shift (8 Hours)</option>
+                            <option value="24h" selected>Last Day (24 Hours)</option>
+                            <option value="7d">Last Week (7 Days)</option>
+                            <option value="30d">Last Month (30 Days)</option>
+                        </select>
+                    </div>
+
+                    <div class="control-group">
+                        <label>REPORTING</label>
+                        <div style="display: flex; gap: 10px;">
+                            <button class="export-btn csv" onclick="downloadCSV()">⬇ Excel / CSV</button>
+                            <button class="export-btn pdf" onclick="downloadPDF()">📄 PDF Report</button>
+                        </div>
+                    </div>
+
+                    <div class="control-group" style="grid-column: 1 / -1;">
+                        <label>COMPARE MACHINES</label>
+                        <div id="hist-machine-selectors" class="machine-checkbox-grid">
+                            </div>
                     </div>
                 </div>
                 
