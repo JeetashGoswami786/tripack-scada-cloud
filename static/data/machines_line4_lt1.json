@@ -20,5 +20,5 @@
             {"id": 19, "name": "SR-11 (L4)"},
             {"id": 21, "name": "SD-11 (L4)"},
             {"id": 22, "name": "UPS (L4)"},
-            {"id": 2, "name": "INCOMING Ext Star Line 4"}
+            {"id": 99, "name": "INCOMING Ext Star Line 4"}
         ]
