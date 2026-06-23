@@ -311,14 +311,21 @@ async function startPolling() {
                 const vEl = document.getElementById(`v-${id}`);
                 if (!vEl) continue;
                 
-                const prev = prevValues[id];
+                const prev = prevValues[id] || { v: 0, i: 0, kw: 0, pf: 0, kwh: 0 };
                 const newV = parseFloat(d.v_l1) || 0;
                 const newKW = parseFloat(d.kw) || 0;
                 const newI = parseFloat(d.i_l1) || 0;
+                const newKWH = parseFloat(d.kwh_total) || 0; // Grab the new KWh value
 
                 animateValue(vEl, prev.v, newV, 500, 1);
                 document.getElementById(`pf-${id}`).textContent = parseFloat(d.pf).toFixed(2);
                 document.getElementById(`kw-${id}`).textContent = newKW.toFixed(1);
+                
+                // NEW: Update the KWh display (Ensure you have an element with id="kwh-${id}")
+                const kwhEl = document.getElementById(`kwh-${id}`);
+                if (kwhEl) {
+                    kwhEl.textContent = newKWH.toFixed(1);
+                }
                 
                 document.getElementById(`vbar-${id}`).style.width = Math.min((newV / 250) * 100, 100) + '%';
                 document.getElementById(`pfbar-${id}`).style.width = (parseFloat(d.pf) * 100) + '%';
@@ -334,7 +341,7 @@ async function startPolling() {
                     machineCharts[id].update('none');
                 }
 
-                prevValues[id] = { v: newV, i: newI, kw: newKW, pf: d.pf };
+                prevValues[id] = { v: newV, i: newI, kw: newKW, pf: d.pf, kwh: newKWH };
             }
         } catch (err) { console.warn("Polling offline..."); }
     }, 2000);
