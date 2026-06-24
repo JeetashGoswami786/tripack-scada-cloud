@@ -207,4 +207,78 @@ async def get_isolated_history(request: Request, machine_id: str, timeframe: str
         else:
             interval_sql = get_sql_interval(timeframe)
             query += f" AND timestamp >= NOW() - INTERVAL '{interval_sql}'"
-        query += "
+        query += " ORDER BY timestamp ASC"
+        cur.execute(query, tuple(params))
+        rows = cur.fetchall()
+        cur.close()
+        conn.close()
+        history = {}
+        history[machine_id] = []
+        for row in rows:
+            history[machine_id].append({ "ts": row['ts'], "kw": row['kw'], "i_l1": row['i_l1'], "v_l1": row['v_l1'], "pf": row['pf'], "kwh": row['kwh'] })
+        return history
+    except Exception as e: return {"error": str(e)}
+
+@app.get("/api/history/{section_id}")
+async def get_history(section_id: str, timeframe: str = "24h", start: str = None, end: str = None):
+    if not DATABASE_URL: return {"error": "No db"}
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor(cursor_factory=RealDictCursor)
+        query = "SELECT machine_id, EXTRACT(EPOCH FROM timestamp) * 1000 AS ts, kw, i_l1, v_l1, pf, kwh FROM scada_history WHERE section_id = %s"
+        params = [section_id]
+        if timeframe == 'custom' and start and end:
+            query += " AND timestamp >= CAST(%s AS TIMESTAMP) AND timestamp <= CAST(%s AS TIMESTAMP)"
+            params.extend([start, end])
+        else:
+            interval_sql = get_sql_interval(timeframe)
+            query += f" AND timestamp >= NOW() - INTERVAL '{interval_sql}'"
+        query += " ORDER BY timestamp ASC"
+        cur.execute(query, tuple(params))
+        rows = cur.fetchall()
+        cur.close()
+        conn.close()
+        history = {}
+        for row in rows:
+            m_id = str(row['machine_id'])
+            if m_id not in history: history[m_id] = []
+            history[m_id].append({ "ts": row['ts'], "kw": row['kw'], "i_l1": row['i_l1'], "v_l1": row['v_l1'], "pf": row['pf'], "kwh": row['kwh'] })
+        return history
+    except Exception as e: return {"error": str(e)}
+
+@app.get("/api/export_csv/{section_id}")
+async def export_csv(section_id: str, timeframe: str = "24h", start: str = None, end: str = None):
+    if not DATABASE_URL: return {"error": "No db"}
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor(cursor_factory=RealDictCursor)
+        query = "SELECT timestamp, machine_id, v_l1, i_l1, kw, pf, kwh FROM scada_history WHERE section_id = %s"
+        params = [section_id]
+        if timeframe == 'custom' and start and end:
+            query += " AND timestamp >= CAST(%s AS TIMESTAMP) AND timestamp <= CAST(%s AS TIMESTAMP)"
+            params.extend([start, end])
+        else:
+            interval_sql = get_sql_interval(timeframe)
+            query += f" AND timestamp >= NOW() - INTERVAL '{interval_sql}'"
+        query += " ORDER BY timestamp DESC"
+        cur.execute(query, tuple(params))
+        rows = cur.fetchall()
+        cur.close()
+        conn.close()
+        output = io.StringIO()
+        writer = csv.writer(output)
+        writer.writerow(['Date & Time', 'Section', 'Machine ID', 'Voltage L1 (V)', 'Current L1 (A)', 'Active Power (kW)', 'Power Factor', 'Active Energy (kWh)'])
+        for row in rows:
+            if row['timestamp']:
+                pkt_time = row['timestamp'] + timedelta(hours=5)
+                fmt_time = pkt_time.strftime('%d-%b-%Y %I:%M:%S %p')
+            else:
+                fmt_time = 'N/A'
+            writer.writerow([fmt_time, section_id, row['machine_id'], row['v_l1'], row['i_l1'], row['kw'], row['pf'], row['kwh']])
+        output.seek(0)
+        headers = { 'Content-Disposition': f'attachment; filename="TriPack_{section_id}_Export.csv"' }
+        return StreamingResponse(output, media_type="text/csv", headers=headers)
+    except Exception as e: return {"error": str(e)}
+
+if __name__ == "__main__":
+    uvicorn.run(app, host="0.0.0.0", port=8000)
