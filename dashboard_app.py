@@ -18,39 +18,38 @@ app.add_middleware(SessionMiddleware, secret_key="tripack_super_secret_key_123")
 app.mount("/static", StaticFiles(directory="static"), name="static")
 templates = Jinja2Templates(directory="templates")
 
-# --- TIER 1: PLANT AREAS ---
+# --- TIER 1: PLANT AREAS (Passwords Simplified) ---
 SECTIONS = {
-    "line4_lt1": {"name": "Line 4 - LT 01", "username": None, "password": "pass_line4"},
-    "line4_lt2": {"name": "Line 4 - LT 02", "username": None, "password": "pass_line4"},
-    "line5_sub1": {"name": "Line 5 - Substation 1", "username": None, "password": "pass_line5"},
-    "line5_sub2": {"name": "Line 5 - Substation 2", "username": None, "password": "pass_line5"},
-    "line5_sub3": {"name": "Line 5 - Substation 3", "username": None, "password": "tripack123"},
-    # NEW: The Master Entry for Individual Machines
-    "individual_machines": {"name": "Individual Machines", "username": "alone", "password": "machine123"},
+    "line4_lt1": {"name": "Line 4 - LT 01", "password": "tripack123"},
+    "line4_lt2": {"name": "Line 4 - LT 02", "password": "tripack123"},
+    "line5_sub1": {"name": "Line 5 - Substation 1", "password": "tripack123"},
+    "line5_sub2": {"name": "Line 5 - Substation 2", "password": "tripack123"},
+    "line5_sub3": {"name": "Line 5 - Substation 3", "password": "tripack123"},
+    "individual_machines": {"name": "Individual Machines", "password": "tripack123"},
 }
 
-# --- TIER 2: ISOLATED MACHINES ---
+# --- TIER 2: ISOLATED MACHINES (Passwords Simplified) ---
 INDIVIDUAL_MACHINES = {
-    "ps_5": {"name": "PS 5 (BOPP)", "username": "ps5_user", "password": "123"},
-    "ps_7": {"name": "PS 7 (BOPP)", "username": "ps7_user", "password": "123"},
-    "cpp_1": {"name": "CPP 1", "username": "cpp1_user", "password": "123"},
-    "k5_1": {"name": "K5 1 (CPP)", "username": "k5_1_user", "password": "123"},
-    "ps_4": {"name": "PS 4 (CPP)", "username": "ps4_user", "password": "123"},
-    "cpp_2": {"name": "CPP 2", "username": "cpp2_user", "password": "123"},
-    "k5_3": {"name": "K5 3 (CPP)", "username": "k5_3_user", "password": "123"},
-    "ps_6": {"name": "PS 6 (CPP)", "username": "ps6_user", "password": "123"},
-    "k5_2": {"name": "K5 2 (BOPP)", "username": "k5_2_user", "password": "123"},
-    "ss_10": {"name": "SS-10", "username": "ss10_user", "password": "123"},
-    "k5_4": {"name": "K5 4 (BOPP)", "username": "k5_4_user", "password": "123"},
-    "ss_14": {"name": "SS-14", "username": "ss14_user", "password": "123"},
-    "erema_3": {"name": "Erema 3", "username": "erema3_user", "password": "123"},
-    "erema_4": {"name": "Erema 4", "username": "erema4_user", "password": "123"},
-    "ss_04": {"name": "SS-04", "username": "ss04_user", "password": "123"},
-    "ss_12": {"name": "SS-12", "username": "ss12_user", "password": "123"},
-    "ss_13": {"name": "SS-13", "username": "ss13_user", "password": "123"},
-    "ss_08": {"name": "SS-08", "username": "ss08_user", "password": "123"},
-    "ss_09": {"name": "SS-09", "username": "ss09_user", "password": "123"},
-    "ss_11": {"name": "SS-11", "username": "ss11_user", "password": "123"},
+    "ps_5": {"name": "PS 5 (BOPP)", "password": "machine1"},
+    "ps_7": {"name": "PS 7 (BOPP)", "password": "machine2"},
+    "cpp_1": {"name": "CPP 1", "password": "machine3"},
+    "k5_1": {"name": "K5 1 (CPP)", "password": "machine4"},
+    "ps_4": {"name": "PS 4 (CPP)", "password": "machine5"},
+    "cpp_2": {"name": "CPP 2", "password": "machine6"},
+    "k5_3": {"name": "K5 3 (CPP)", "password": "machine7"},
+    "ps_6": {"name": "PS 6 (CPP)", "password": "machine8"},
+    "k5_2": {"name": "K5 2 (BOPP)", "password": "machine9"},
+    "ss_10": {"name": "SS-10", "password": "machine10"},
+    "k5_4": {"name": "K5 4 (BOPP)", "password": "machine11"},
+    "ss_14": {"name": "SS-14", "password": "machine12"},
+    "erema_3": {"name": "Erema 3", "password": "machine13"},
+    "erema_4": {"name": "Erema 4", "password": "machine14"},
+    "ss_04": {"name": "SS-04", "password": "machine15"},
+    "ss_12": {"name": "SS-12", "password": "machine16"},
+    "ss_13": {"name": "SS-13", "password": "machine17"},
+    "ss_08": {"name": "SS-08", "password": "machine18"},
+    "ss_09": {"name": "SS-09", "password": "machine19"},
+    "ss_11": {"name": "SS-11", "password": "machine20"},
 }
 
 LIVE_DATA = {sec_id: {} for sec_id in SECTIONS.keys()}
@@ -79,7 +78,6 @@ def init_db():
         conn.commit()
         cur.close()
         conn.close()
-        print("Database Auto-Upgraded with kWh Support.")
     except Exception as e: print(f"DB Error: {e}")
 
 # ==========================================
@@ -91,22 +89,11 @@ async def serve_hub(request: Request):
     return templates.TemplateResponse(request=request, name="hub.html", context={"sections": SECTIONS})
 
 @app.post("/login/{section_id}")
-async def login_submit(request: Request, section_id: str, username: str = Form(None), password: str = Form(...)):
+async def login_submit(request: Request, section_id: str, password: str = Form(...)): # NO USERNAME REQUIRED
     if section_id not in SECTIONS:
         return RedirectResponse(url="/", status_code=status.HTTP_303_SEE_OTHER)
         
-    # --- FIX START ---
-    # Convert empty strings "" to None so the server treats them as "No Username"
-    if username is not None and username.strip() == "":
-        username = None
-    # --- FIX END ---
-        
     sec = SECTIONS[section_id]
-    
-    # Check username ONLY if the section requires one (like "individual_machines")
-    if sec.get("username"): 
-        if username is None or username.strip().lower() != sec["username"].strip().lower():
-            return RedirectResponse(url="/?error=1", status_code=status.HTTP_303_SEE_OTHER)
             
     # Check password
     if password == sec["password"]:
@@ -138,33 +125,31 @@ async def serve_dashboard(request: Request, section_id: str):
 
 @app.get("/machine_hub")
 async def serve_machine_hub(request: Request):
-    # Ensure they passed Tier 1
     if "individual_machines" not in request.session.get("authorized", []):
         return RedirectResponse(url="/", status_code=status.HTTP_303_SEE_OTHER)
     return templates.TemplateResponse(request=request, name="machine_hub.html", context={"machines": INDIVIDUAL_MACHINES})
 
 @app.post("/login_machine/{machine_id}")
-async def login_machine(request: Request, machine_id: str, username: str = Form(...), password: str = Form(...)):
+async def login_machine(request: Request, machine_id: str, password: str = Form(...)): # NO USERNAME REQUIRED
     if machine_id in INDIVIDUAL_MACHINES:
         m = INDIVIDUAL_MACHINES[machine_id]
-        if username == m["username"] and password == m["password"]:
+        
+        # Clean the password input to prevent accidental spaces
+        clean_pass = password.strip()
+        
+        if clean_pass == m["password"]:
             if "machine_auth" not in request.session: request.session["machine_auth"] = []
             if machine_id not in request.session["machine_auth"]: request.session["machine_auth"].append(machine_id)
             return RedirectResponse(url=f"/isolated/{machine_id}", status_code=status.HTTP_303_SEE_OTHER)
+            
     # Redirect back to sub-hub if failed
-    return RedirectResponse(url="/machine_hub", status_code=status.HTTP_303_SEE_OTHER)
+    return RedirectResponse(url="/machine_hub?error=1", status_code=status.HTTP_303_SEE_OTHER)
 
 @app.get("/isolated/{machine_id}")
 async def serve_isolated(request: Request, machine_id: str):
-    # Ensure they passed Tier 2
     if machine_id not in INDIVIDUAL_MACHINES or machine_id not in request.session.get("machine_auth", []):
         return RedirectResponse(url="/machine_hub", status_code=status.HTTP_303_SEE_OTHER)
-    
-    return templates.TemplateResponse(
-        request=request, 
-        name="single_machine.html", 
-        context={"machine_id": machine_id, "machine_name": INDIVIDUAL_MACHINES[machine_id]["name"]}
-    )
+    return templates.TemplateResponse(request=request, name="single_machine.html", context={"machine_id": machine_id, "machine_name": INDIVIDUAL_MACHINES[machine_id]["name"]})
 
 # ==========================================
 # 3. EDGE DATA SYNCHRONIZATION
@@ -202,37 +187,26 @@ def get_sql_interval(timeframe):
     intervals = {"1h": "1 HOUR", "8h": "8 HOURS", "24h": "24 HOURS", "7d": "7 DAYS", "30d": "30 DAYS"}
     return intervals.get(timeframe, "24 HOURS")
 
-# ==========================================
-# 4. SECURE ISOLATED DATA ROUTES
-# ==========================================
-
 @app.get("/api/isolated_history/{machine_id}")
 async def get_isolated_history(request: Request, machine_id: str, timeframe: str = "24h", start: str = None, end: str = None):
-    # Strict Security: Validate Cookie before serving data
-    if machine_id not in request.session.get("machine_auth", []):
-        return {"error": "Unauthorized Data Request"}
-        
+    if machine_id not in request.session.get("machine_auth", []): return {"error": "Unauthorized Data Request"}
     if not DATABASE_URL: return {"error": "No db"}
     try:
         conn = get_db_connection()
         cur = conn.cursor(cursor_factory=RealDictCursor)
-        # Fetch data ONLY for this specific machine
         query = "SELECT machine_id, EXTRACT(EPOCH FROM timestamp) * 1000 AS ts, kw, i_l1, v_l1, pf, kwh FROM scada_history WHERE machine_id = %s"
         params = [machine_id]
-        
         if timeframe == 'custom' and start and end:
             query += " AND timestamp >= CAST(%s AS TIMESTAMP) AND timestamp <= CAST(%s AS TIMESTAMP)"
             params.extend([start, end])
         else:
             interval_sql = get_sql_interval(timeframe)
             query += f" AND timestamp >= NOW() - INTERVAL '{interval_sql}'"
-            
         query += " ORDER BY timestamp ASC"
         cur.execute(query, tuple(params))
         rows = cur.fetchall()
         cur.close()
         conn.close()
-
         history = {}
         history[machine_id] = []
         for row in rows:
@@ -248,20 +222,17 @@ async def get_history(section_id: str, timeframe: str = "24h", start: str = None
         cur = conn.cursor(cursor_factory=RealDictCursor)
         query = "SELECT machine_id, EXTRACT(EPOCH FROM timestamp) * 1000 AS ts, kw, i_l1, v_l1, pf, kwh FROM scada_history WHERE section_id = %s"
         params = [section_id]
-        
         if timeframe == 'custom' and start and end:
             query += " AND timestamp >= CAST(%s AS TIMESTAMP) AND timestamp <= CAST(%s AS TIMESTAMP)"
             params.extend([start, end])
         else:
             interval_sql = get_sql_interval(timeframe)
             query += f" AND timestamp >= NOW() - INTERVAL '{interval_sql}'"
-            
         query += " ORDER BY timestamp ASC"
         cur.execute(query, tuple(params))
         rows = cur.fetchall()
         cur.close()
         conn.close()
-
         history = {}
         for row in rows:
             m_id = str(row['machine_id'])
@@ -278,24 +249,20 @@ async def export_csv(section_id: str, timeframe: str = "24h", start: str = None,
         cur = conn.cursor(cursor_factory=RealDictCursor)
         query = "SELECT timestamp, machine_id, v_l1, i_l1, kw, pf, kwh FROM scada_history WHERE section_id = %s"
         params = [section_id]
-        
         if timeframe == 'custom' and start and end:
             query += " AND timestamp >= CAST(%s AS TIMESTAMP) AND timestamp <= CAST(%s AS TIMESTAMP)"
             params.extend([start, end])
         else:
             interval_sql = get_sql_interval(timeframe)
             query += f" AND timestamp >= NOW() - INTERVAL '{interval_sql}'"
-            
         query += " ORDER BY timestamp DESC"
         cur.execute(query, tuple(params))
         rows = cur.fetchall()
         cur.close()
         conn.close()
-
         output = io.StringIO()
         writer = csv.writer(output)
         writer.writerow(['Date & Time', 'Section', 'Machine ID', 'Voltage L1 (V)', 'Current L1 (A)', 'Active Power (kW)', 'Power Factor', 'Active Energy (kWh)'])
-        
         for row in rows:
             if row['timestamp']:
                 pkt_time = row['timestamp'] + timedelta(hours=5)
@@ -303,7 +270,6 @@ async def export_csv(section_id: str, timeframe: str = "24h", start: str = None,
             else:
                 fmt_time = 'N/A'
             writer.writerow([fmt_time, section_id, row['machine_id'], row['v_l1'], row['i_l1'], row['kw'], row['pf'], row['kwh']])
-        
         output.seek(0)
         headers = { 'Content-Disposition': f'attachment; filename="TriPack_{section_id}_Export.csv"' }
         return StreamingResponse(output, media_type="text/csv", headers=headers)
