@@ -182,14 +182,16 @@
         function closeLogin() {
             document.getElementById('login-modal').classList.remove('active');
         }
+
+        window.onload = function() {
+            const urlParams = new URLSearchParams(window.location.search);
+            if (urlParams.get('error')) {
+                alert("❌ ACCESS DENIED: Incorrect Password!");
+                window.history.replaceState(null, '', window.location.pathname); 
+            }
+        }
     </script>
         
-        window.onload = function() {
-                const urlParams = new URLSearchParams(window.location.search);
-                if (urlParams.get('error')) {
-                    alert("❌ ACCESS DENIED: Incorrect Password!");
-                    window.history.replaceState(null, '', window.location.pathname); 
-                }
-         }
+    
 </body>
 </html>
