@@ -12,7 +12,6 @@ import uvicorn
 import io
 import csv
 
-# NEW: Email Automation Libraries
 from apscheduler.schedulers.background import BackgroundScheduler
 
 app = FastAPI(title="Tri-Pack Industrial Master SCADA")
@@ -31,28 +30,21 @@ SECTIONS = {
     "individual_machines": {"name": "Main Incoming", "password": "tripack123"},
 }
 
-# --- TIER 2: ISOLATED MACHINES ---
+# --- TIER 2: MAIN INCOMING (NEW NETWORK) ---
 INDIVIDUAL_MACHINES = {
-    "ps_5": {"name": "PS 5 (BOPP)", "password": "machine1"},
-    "ps_7": {"name": "PS 7 (BOPP)", "password": "machine2"},
-    "cpp_1": {"name": "CPP 1", "password": "machine3"},
-    "k5_1": {"name": "K5 1 (CPP)", "password": "machine4"},
-    "ps_4": {"name": "PS 4 (CPP)", "password": "machine5"},
-    "cpp_2": {"name": "CPP 2", "password": "machine6"},
-    "k5_3": {"name": "K5 3 (CPP)", "password": "machine7"},
-    "ps_6": {"name": "PS 6 (CPP)", "password": "machine8"},
-    "k5_2": {"name": "K5 2 (BOPP)", "password": "machine9"},
-    "ss_10": {"name": "SS-10", "password": "machine10"},
-    "k5_4": {"name": "K5 4 (BOPP)", "password": "machine11"},
-    "ss_14": {"name": "SS-14", "password": "machine12"},
-    "erema_3": {"name": "Erema 3", "password": "machine13"},
-    "erema_4": {"name": "Erema 4", "password": "machine14"},
-    "ss_04": {"name": "SS-04", "password": "machine15"},
-    "ss_12": {"name": "SS-12", "password": "machine16"},
-    "ss_13": {"name": "SS-13", "password": "machine17"},
-    "ss_08": {"name": "SS-08", "password": "machine18"},
-    "ss_09": {"name": "SS-09", "password": "machine19"},
-    "ss_11": {"name": "SS-11", "password": "machine20"},
+    "inc_ext_delta_l4": {"name": "INCOMING Ext Delta Line 4", "password": "machine1"},
+    "inc_l4_feeder_1": {"name": "INCOMING L4 Feeder 1", "password": "machine2"},
+    "inc_ext_star_l4": {"name": "INCOMING Ext Star Line 4", "password": "machine3"},
+    "inc_l4_feeder_2": {"name": "INCOMING L4 Feeder 2", "password": "machine4"},
+    "inc_qm2_lvp_03": {"name": "INCOMING QM2 LVP-03", "password": "machine5"},
+    "inc_qm3_lvp_01": {"name": "INCOMING QM3 LVP-01", "password": "machine6"},
+    "inc_qm1_f12_lvp_02_b": {"name": "INCOMING QM1 F12 LVP-02 B", "password": "machine7"},
+    "inc_qm1_f13_lvp_02_a": {"name": "INCOMING QM1 F13 LVP-02 A", "password": "machine8"},
+    "inc_qm1_lvp_04": {"name": "INCOMING QM1 LVP-04", "password": "machine9"},
+    "inc_qm3_lvp_05": {"name": "INCOMING QM3 LVP-05", "password": "machine10"},
+    "inc_qm1_lvp_07": {"name": "INCOMING QM1 LVP-07", "password": "machine11"},
+    "inc_qm3_lvp_06": {"name": "INCOMING QM3 LVP-06", "password": "machine12"},
+    "inc_pending_13": {"name": "INCOMING 13 (Pending)", "password": "machine13"}
 }
 
 LIVE_DATA = {sec_id: {} for sec_id in SECTIONS.keys()}
@@ -62,20 +54,16 @@ last_db_write = {sec: 0 for sec in SECTIONS.keys()}
 def get_db_connection():
     return psycopg2.connect(DATABASE_URL)
 
-# --- NEW: Automated Email Function (Scheduled for Phase 3) ---
 def send_daily_report():
     print("CRON: Generating automated daily management report...")
-    # Full SMTP logic will be mapped here in Phase 3!
     pass
 
 @app.on_event("startup")
 def init_server():
-    # 1. Initialize Background Email Scheduler
     scheduler = BackgroundScheduler()
     scheduler.add_job(send_daily_report, 'cron', hour=8, minute=0)
     scheduler.start()
     
-    # 2. Upgrade Database Schema for Phase Data & THD
     if not DATABASE_URL: return
     try:
         conn = get_db_connection()
@@ -87,7 +75,6 @@ def init_server():
                 v_l1 REAL, i_l1 REAL, kw REAL, pf REAL, kwh REAL DEFAULT 0
             )
         ''')
-        # Upgrade existing tables safely
         cur.execute("ALTER TABLE scada_history ADD COLUMN IF NOT EXISTS section_id VARCHAR(50) DEFAULT 'line5_sub3';")
         cur.execute("ALTER TABLE scada_history ADD COLUMN IF NOT EXISTS kwh REAL DEFAULT 0;")
         cur.execute("ALTER TABLE scada_history ADD COLUMN IF NOT EXISTS v_l2 REAL DEFAULT 0;")
@@ -103,9 +90,6 @@ def init_server():
         print("✅ Database Upgraded for 3-Phase & THD Analytics!")
     except Exception as e: print(f"DB Error: {e}")
 
-# ==========================================
-# 1. TIER 1 SECURITY (MAIN HUB)
-# ==========================================
 @app.get("/")
 async def serve_hub(request: Request):
     return templates.TemplateResponse(request=request, name="hub.html", context={"sections": SECTIONS})
@@ -134,9 +118,6 @@ async def serve_dashboard(request: Request, section_id: str):
         return RedirectResponse(url="/", status_code=status.HTTP_303_SEE_OTHER)
     return templates.TemplateResponse(request=request, name="index.html", context={"section_id": section_id, "section_name": SECTIONS[section_id]["name"]})
 
-# ==========================================
-# 2. TIER 2 SECURITY (INDIVIDUAL MACHINES)
-# ==========================================
 @app.get("/machine_hub")
 async def serve_machine_hub(request: Request):
     if "individual_machines" not in request.session.get("authorized", []):
@@ -161,9 +142,6 @@ async def serve_isolated(request: Request, machine_id: str):
         return RedirectResponse(url="/machine_hub", status_code=status.HTTP_303_SEE_OTHER)
     return templates.TemplateResponse(request=request, name="single_machine.html", context={"machine_id": machine_id, "machine_name": INDIVIDUAL_MACHINES[machine_id]["name"]})
 
-# ==========================================
-# 3. EDGE DATA SYNCHRONIZATION
-# ==========================================
 @app.get("/api/live_data/{section_id}")
 async def serve_api_data(section_id: str):
     return LIVE_DATA.get(section_id, {})
@@ -181,7 +159,6 @@ async def update_live_data(section_id: str, data: dict = Body(...)):
             cur = conn.cursor()
             for m_id, vals in data.items():
                 if vals.get('status') == 'Online':
-                    # NEW: Saving all 3 phases and THD to the database!
                     cur.execute('''
                         INSERT INTO scada_history 
                         (section_id, machine_id, v_l1, v_l2, v_l3, i_l1, i_l2, i_l3, kw, pf, kwh, thd_v, thd_i)
@@ -202,9 +179,6 @@ def get_sql_interval(timeframe):
     intervals = {"1h": "1 HOUR", "8h": "8 HOURS", "24h": "24 HOURS", "7d": "7 DAYS", "30d": "30 DAYS"}
     return intervals.get(timeframe, "24 HOURS")
 
-# ==========================================
-# 4. HISTORY DATA ROUTES
-# ==========================================
 @app.get("/api/isolated_history/{machine_id}")
 async def get_isolated_history(request: Request, machine_id: str, timeframe: str = "24h", start: str = None, end: str = None):
     if machine_id not in request.session.get("machine_auth", []): return {"error": "Unauthorized"}
