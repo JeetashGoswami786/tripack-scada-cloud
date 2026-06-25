@@ -1,5 +1,5 @@
 /* ============================================================
-   SCADA ENGINE v8.0 — True Hybrid Enterprise Analytics
+   SCADA ENGINE v9.0 — Ultimate Wide-Panel Analytics
    ============================================================ */
 
 // ─── GLOBAL STATE ───────────────────────────────────────────
@@ -14,7 +14,7 @@ let rawHistoryData = {};
 let masterMachineList = [];
 let apexHeatmap = null;
 
-// ─── LIVE CLOCK & UPTIME RESTORED ───────────────────────────
+// ─── LIVE CLOCK & UPTIME ────────────────────────────────────
 function tickClock() {
     const now = new Date();
     const cl = document.getElementById('live-clock');
@@ -31,7 +31,7 @@ function tickClock() {
 }
 setInterval(tickClock, 1000);
 
-// ─── UTILITIES & ANIMATIONS RESTORED ────────────────────────
+// ─── UTILITIES & ANIMATIONS ─────────────────────────────────
 function animateValue(el, from, to, ms, dp = 1) {
     if (!el) return;
     if (isNaN(from) || isNaN(to)) { el.textContent = isNaN(to) ? '---' : to.toFixed(dp); return; }
@@ -46,7 +46,7 @@ function animateValue(el, from, to, ms, dp = 1) {
     requestAnimationFrame(tick);
 }
 
-// ─── SVG GAUGE BUILDERS RESTORED ────────────────────────────
+// ─── MULTI-GAUGE BUILDERS ───────────────────────────────────
 function buildTicks() {
     let s = '';
     for (let i = 0; i <= 10; i++) {
@@ -59,32 +59,40 @@ function buildTicks() {
     return s;
 }
 
-function makeSVG(id) {
+function makeGauge(id, type, label, maxVal) {
+    // Custom colors for different metrics
+    const colors = {
+        'v':  { c1: '#FBBF24', c2: '#F59E0B' }, // Yellow/Orange for Voltage
+        'i':  { c1: '#34D399', c2: '#10B981' }, // Emerald for Current
+        'kw': { c1: '#38BDF8', c2: '#0284C7' }, // Light Blue for Power
+        'pf': { c1: '#A78BFA', c2: '#7C3AED' }  // Purple for Power Factor
+    }[type];
+
     return `
     <svg viewBox="0 0 120 72" class="industrial-gauge">
       <defs>
-        <linearGradient id="gGrad-${id}" x1="0%" y1="0%" x2="100%" y2="0%">
-          <stop offset="0%" stop-color="#10B981"/><stop offset="100%" stop-color="#059669"/>
+        <linearGradient id="gGrad-${type}-${id}" x1="0%" y1="0%" x2="100%" y2="0%">
+          <stop offset="0%" stop-color="${colors.c1}"/><stop offset="100%" stop-color="${colors.c2}"/>
         </linearGradient>
       </defs>
       ${buildTicks()}
       <path class="gauge-track" d="M 16 56 A 44 44 0 0 1 104 56"/>
-      <path class="gauge-fill" id="gauge-${id}" d="M 16 56 A 44 44 0 0 1 104 56" stroke="url(#gGrad-${id})" stroke-dasharray="0,138.23"/>
-      <text x="60" y="51" class="gauge-value" id="i-${id}">0</text>
-      <text x="60" y="61" class="gauge-unit">CURRENT (A)</text>
+      <path class="gauge-fill" id="gauge-${type}-${id}" d="M 16 56 A 44 44 0 0 1 104 56" stroke="url(#gGrad-${type}-${id})" stroke-dasharray="0,138.23"/>
+      <text x="60" y="51" class="gauge-value" id="val-${type}-${id}">0</text>
+      <text x="60" y="61" class="gauge-unit">${label}</text>
       <text x="17" y="68" class="gauge-range-label" text-anchor="start">0</text>
-      <text x="103" y="68" class="gauge-range-label" text-anchor="end">3000</text>
+      <text x="103" y="68" class="gauge-range-label" text-anchor="end">${maxVal}</text>
     </svg>`;
 }
 
-function setGauge(id, ampere) {
-    const pct = Math.min(ampere / 3000, 1);
+function updateGauge(id, type, val, maxVal) {
+    const pct = Math.min(Math.max(val / maxVal, 0), 1); // clamp between 0 and 1
     const len = (pct * 138.23).toFixed(2);
-    const el = document.getElementById(`gauge-${id}`);
+    const el = document.getElementById(`gauge-${type}-${id}`);
     if (el) el.setAttribute('stroke-dasharray', `${len},138.23`);
 }
 
-// ─── HYBRID PANEL TEMPLATE ──────────────────────────────────
+// ─── WIDE PANEL TEMPLATE ────────────────────────────────────
 function getPanelHTML(m) {
     return `
     <div class="machine-panel" id="panel-${m.id}">
@@ -93,32 +101,28 @@ function getPanelHTML(m) {
                 <div class="status-led offline" id="led-${m.id}"></div>
                 <h2 class="machine-name">${m.name}</h2>
             </div>
-            <span class="device-id">ID: ${m.id}</span>
+            <span class="device-id">NODE ID: ${m.id}</span>
         </div>
         
-        <div class="panel-body">
-            <div class="data-column" style="padding-right: 15px; border-right: 1px solid #F1F5F9;">
-                <div class="data-row"><span class="data-label">Voltage L1</span><div><span class="data-value" id="v-${m.id}">---</span><span class="data-unit">V</span></div></div>
-                <div class="data-row"><span class="data-label">Power Factor</span><div><span class="data-value" id="pf-${m.id}">---</span></div></div>
-                <div class="data-row"><span class="data-label">Active Power</span><div><span class="data-value" style="color:#008FD5;" id="kw-${m.id}">---</span><span class="data-unit">kW</span></div></div>
-                <div class="data-row"><span class="data-label">Total Energy</span><div><span class="data-value" style="color:#10B981;" id="kwh-${m.id}">---</span><span class="data-unit">MWh</span></div></div>
-                <div class="data-row"><span class="data-label">CO₂ Eq.</span><div><span class="data-value" id="co2-${m.id}">---</span><span class="data-unit">Tons</span></div></div>
-                <div class="data-row" style="border:none;">
-                    <span class="data-label">THD-V</span>
-                    <div style="display:flex; align-items:center; gap:8px;">
-                        <span class="data-value" id="thdv-${m.id}">---</span><span class="data-unit">%</span>
-                    </div>
-                </div>
-                <div style="text-align: right;"><span style="font-size: 10px; font-weight: 800; padding: 2px 6px; border-radius: 4px; border: 1px solid #A7F3D0; background: #ECFDF5; color: #059669;" id="badge-thdv-${m.id}">NORMAL</span></div>
-            </div>
+        <div class="panel-body-wide">
+            <div class="gauge-wrap">${makeGauge(m.id, 'v', 'VOLTAGE (V)', 300)}</div>
+            <div class="gauge-wrap">${makeGauge(m.id, 'i', 'CURRENT (A)', 3000)}</div>
+            <div class="gauge-wrap">${makeGauge(m.id, 'kw', 'POWER (kW)', 500)}</div>
+            <div class="gauge-wrap">${makeGauge(m.id, 'pf', 'PWR FACTOR', 1.0)}</div>
             
-            <div class="gauge-column" style="text-align: center;">
-                ${makeSVG(m.id)}
+            <div class="radar-column">
+                <span class="data-label" style="text-align:center; display:block;">Phase Radar (L1/L2/L3)</span>
+                <div class="radar-box"><canvas id="radar-${m.id}"></canvas></div>
             </div>
 
-            <div class="radar-column" style="text-align: center; border-left: 1px solid #F1F5F9; padding-left: 10px;">
-                <span class="data-label" style="font-size: 10px;">Phasor Radar</span>
-                <div class="radar-box"><canvas id="radar-${m.id}"></canvas></div>
+            <div class="stats-column">
+                <div class="data-row"><span class="data-label">Total Energy</span><div><span class="data-value" style="color:#10B981;" id="kwh-${m.id}">---</span><span class="data-unit">MWh</span></div></div>
+                <div class="data-row"><span class="data-label">CO₂ Eq.</span><div><span class="data-value" style="color:#008FD5;" id="co2-${m.id}">---</span><span class="data-unit">Tons</span></div></div>
+                <div class="data-row" style="border:none;">
+                    <span class="data-label">THD-V</span>
+                    <div><span class="data-value" id="thdv-${m.id}">---</span><span class="data-unit">%</span></div>
+                </div>
+                <div style="text-align: right;"><span class="thd-badge" id="badge-thdv-${m.id}">NORMAL</span></div>
             </div>
         </div>
 
@@ -129,13 +133,13 @@ function getPanelHTML(m) {
 // ─── INITIALIZE CHARTS ──────────────────────────────────────
 function initMiniLineChart(id) {
     const ctx = document.getElementById(`chart-${id}`).getContext('2d');
-    const grad = ctx.createLinearGradient(0, 0, 0, 60);
+    const grad = ctx.createLinearGradient(0, 0, 0, 70);
     grad.addColorStop(0, 'rgba(0,143,213,0.15)');
     grad.addColorStop(1, 'rgba(0,143,213,0.01)');
 
     machineCharts[id] = new Chart(ctx, {
         type: 'line',
-        data: { labels: Array(MAX_PTS).fill(''), datasets: [{ data: Array(MAX_PTS).fill(0), borderColor: '#008FD5', backgroundColor: grad, borderWidth: 1.5, fill: true, pointRadius: 0, tension: 0.4 }] },
+        data: { labels: Array(MAX_PTS).fill(''), datasets: [{ data: Array(MAX_PTS).fill(0), borderColor: '#008FD5', backgroundColor: grad, borderWidth: 1.5, fill: true, pointRadius: 0, tension: 0.3 }] },
         options: { responsive: true, maintainAspectRatio: false, animation: false, scales: { y: { display: false }, x: { display: false } }, plugins: { legend: { display: false }, tooltip: { enabled: false } } }
     });
 }
@@ -147,8 +151,8 @@ function initRadar(id) {
         data: {
             labels: ['L1', 'L2', 'L3'],
             datasets: [
-                { data: [0,0,0], borderColor: '#FBBF24', backgroundColor: 'rgba(251,191,36,0.2)', borderWidth: 1 },
-                { data: [0,0,0], borderColor: '#F87171', backgroundColor: 'rgba(248,113,113,0.2)', borderWidth: 1 }
+                { data: [0,0,0], borderColor: '#FBBF24', backgroundColor: 'rgba(251,191,36,0.2)', borderWidth: 1.5 },
+                { data: [0,0,0], borderColor: '#F87171', backgroundColor: 'rgba(248,113,113,0.2)', borderWidth: 1.5 }
             ]
         },
         options: { responsive: true, maintainAspectRatio: false, scales: { r: { ticks: { display: false } } }, plugins: { legend: { display: false }, tooltip: {enabled: false} } }
@@ -167,8 +171,11 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         masterMachineList.forEach((m, idx) => {
             gridHTML += getPanelHTML(m);
-            listHTML += `<li><a href="#" onclick="event.preventDefault(); switchTab('live'); setTimeout(() => document.getElementById('panel-${m.id}').scrollIntoView({behavior: 'smooth', block: 'start'}), 50);">${m.name}</a></li>`;
-            selectorsHTML += `<label style="font-size:12px; font-weight:700; color:#64748B;"><input type="checkbox" class="hist-checkbox" value="${m.id}" ${idx < 3 ? 'checked' : ''} onchange="renderHistoryChart()"> ${m.name}</label>`;
+            listHTML += `<li><a href="#" style="color:#94A3B8; display:block; padding:10px 20px; text-decoration:none;" onclick="event.preventDefault(); switchTab('live'); setTimeout(() => document.getElementById('panel-${m.id}').scrollIntoView({behavior: 'smooth', block: 'start'}), 50);">${m.name}</a></li>`;
+            
+            // Generate Properly Aligned Checkboxes
+            selectorsHTML += `<label class="hist-checkbox-wrapper"><input type="checkbox" class="hist-checkbox" value="${m.id}" ${idx < 3 ? 'checked' : ''} onchange="renderHistoryChart()"> ${m.name}</label>`;
+            
             prevValues[m.id] = { v: 0, i: 0, kw: 0, pf: 0 };
         });
 
@@ -210,22 +217,29 @@ function startPolling() {
             const data = await res.json();
             
             for (const [id, d] of Object.entries(data)) {
-                if(!document.getElementById(`v-${id}`)) continue;
+                if(!document.getElementById(`val-v-${id}`)) continue; // Check if gauge text exists
                 
                 const prev = prevValues[id] || { v: 0, i: 0, kw: 0, pf: 0 };
                 const newV = parseFloat(d.v_l1) || 0;
                 const newI = parseFloat(d.i_l1) || 0;
                 const newKW = parseFloat(d.kw) || 0;
+                const newPF = parseFloat(d.pf) || 0;
                 const thdv = parseFloat(d.thd_v) || 0;
 
-                // Animate Data & SVG
-                animateValue(document.getElementById(`v-${id}`), prev.v, newV, 500, 1);
-                animateValue(document.getElementById(`i-${id}`), prev.i, newI, 500, 0);
-                document.getElementById(`kw-${id}`).textContent = newKW.toFixed(2);
-                document.getElementById(`pf-${id}`).textContent = parseFloat(d.pf || 0).toFixed(2);
-                document.getElementById(`thdv-${id}`).textContent = thdv.toFixed(2);
+                // Animate Texts inside Gauges
+                animateValue(document.getElementById(`val-v-${id}`), prev.v, newV, 500, 1);
+                animateValue(document.getElementById(`val-i-${id}`), prev.i, newI, 500, 1);
+                animateValue(document.getElementById(`val-kw-${id}`), prev.kw, newKW, 500, 2);
+                animateValue(document.getElementById(`val-pf-${id}`), prev.pf, newPF, 500, 2);
                 
-                setGauge(id, newI);
+                // Animate the actual Gauge arcs
+                updateGauge(id, 'v', newV, 300);
+                updateGauge(id, 'i', newI, 3000);
+                updateGauge(id, 'kw', newKW, 500);
+                updateGauge(id, 'pf', newPF, 1.0);
+
+                // Update text stats
+                document.getElementById(`thdv-${id}`).textContent = thdv.toFixed(2);
                 updateTHDBadge(id, thdv);
                 
                 // MWh and Carbon Conversion
@@ -257,7 +271,7 @@ function startPolling() {
                     led.classList.remove('online'); led.classList.add('offline');
                 }
                 
-                prevValues[id] = { v: newV, i: newI, kw: newKW, pf: d.pf };
+                prevValues[id] = { v: newV, i: newI, kw: newKW, pf: newPF };
             }
         } catch (err) { console.warn("Polling offline..."); }
     }, 2000);
