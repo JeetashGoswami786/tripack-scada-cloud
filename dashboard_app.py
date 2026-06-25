@@ -25,7 +25,7 @@ SECTIONS = {
     "line5_sub1": {"name": "Line 5 - Substation 1", "password": "tripack123"},
     "line5_sub2": {"name": "Line 5 - Substation 2", "password": "tripack123"},
     "line5_sub3": {"name": "Line 5 - Substation 3", "password": "tripack123"},
-    "individual_machines": {"name": "Individual Machines", "password": "tripack123"},
+    "individual_machines": {"name": "Main Incoming", "password": "tripack123"},
 }
 
 # --- TIER 2: ISOLATED MACHINES (Passwords Simplified) ---
