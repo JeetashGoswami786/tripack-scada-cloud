@@ -59,7 +59,7 @@
         .machine-name { margin: 0; font-size: 20px; font-weight: 900; color: #0F172A; }
         .device-id { font-family: 'JetBrains Mono'; font-size: 12px; color: #64748B; background: #F1F5F9; padding: 4px 10px; border-radius: 4px; font-weight: 800; }
         
-        /* NEW WIDE PANEL LAYOUT */
+        /* WIDE PANEL LAYOUT */
         .panel-body-wide { display: grid; grid-template-columns: repeat(4, 1fr) 2fr 1.5fr; gap: 25px; align-items: center; margin-bottom: 20px; }
         
         /* GAUGES */
@@ -94,7 +94,6 @@
         .export-btn.csv { background: #10B981; } .export-btn.csv:hover { background: #059669; }
         .export-btn.pdf { background: #EF4444; } .export-btn.pdf:hover { background: #DC2626; }
         
-        /* PERFECT CHECKBOX ALIGNMENT */
         .machine-checkbox-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 12px; margin-top: 10px; align-items: center; }
         .hist-checkbox-wrapper { display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 700; color: #475569; cursor: pointer; }
         .hist-checkbox-wrapper input { width: 16px; height: 16px; accent-color: #008FD5; cursor: pointer; margin: 0; }
@@ -147,6 +146,7 @@
                             <option value="kw">Active Power (kW)</option>
                             <option value="v_l1">Voltage L1 (V)</option>
                             <option value="i_l1">Current Load (A)</option>
+                            <option value="pf">Power Factor</option>
                             <option value="thd_v">Voltage Harmonics (THD-V)</option>
                             <option value="kwh">Total Active Energy (MWh)</option>
                             <option value="co2">Carbon Footprint (Tons CO₂)</option>
@@ -203,6 +203,6 @@
         const CURRENT_SECTION = "{{ section_id }}";
         function toggleSidebar() { document.getElementById('sidebar').classList.toggle('closed'); }
     </script>
-    <script src="/static/js/scada_engine.js?v=11"></script>
+    <script src="/static/js/scada_engine.js?v=12"></script>
 </body>
 </html>
