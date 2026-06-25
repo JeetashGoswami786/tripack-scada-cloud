@@ -5,3 +5,5 @@ python-multipart
 pymodbus
 flask
 psycopg2-binary==2.9.9
+itsdangerous
+apscheduler
