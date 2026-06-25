@@ -1,8 +1,7 @@
 /* ============================================================
-   SCADA ENGINE v9.0 — Ultimate Wide-Panel Analytics
+   SCADA ENGINE v9.1 — Bulletproof Historical Analytics
    ============================================================ */
 
-// ─── GLOBAL STATE ───────────────────────────────────────────
 const machineCharts = {};
 const machineRadars = {};
 const prevValues = {};
@@ -14,12 +13,10 @@ let rawHistoryData = {};
 let masterMachineList = [];
 let apexHeatmap = null;
 
-// ─── LIVE CLOCK & UPTIME ────────────────────────────────────
 function tickClock() {
     const now = new Date();
     const cl = document.getElementById('live-clock');
     if (cl) cl.textContent = now.toLocaleTimeString('en-GB', { hour12: false });
-    
     if (startTime) {
         const s = Math.floor((now - startTime) / 1000);
         const h = String(Math.floor(s / 3600)).padStart(2,'0');
@@ -31,7 +28,6 @@ function tickClock() {
 }
 setInterval(tickClock, 1000);
 
-// ─── UTILITIES & ANIMATIONS ─────────────────────────────────
 function animateValue(el, from, to, ms, dp = 1) {
     if (!el) return;
     if (isNaN(from) || isNaN(to)) { el.textContent = isNaN(to) ? '---' : to.toFixed(dp); return; }
@@ -46,7 +42,6 @@ function animateValue(el, from, to, ms, dp = 1) {
     requestAnimationFrame(tick);
 }
 
-// ─── MULTI-GAUGE BUILDERS ───────────────────────────────────
 function buildTicks() {
     let s = '';
     for (let i = 0; i <= 10; i++) {
@@ -60,12 +55,11 @@ function buildTicks() {
 }
 
 function makeGauge(id, type, label, maxVal) {
-    // Custom colors for different metrics
     const colors = {
-        'v':  { c1: '#FBBF24', c2: '#F59E0B' }, // Yellow/Orange for Voltage
-        'i':  { c1: '#34D399', c2: '#10B981' }, // Emerald for Current
-        'kw': { c1: '#38BDF8', c2: '#0284C7' }, // Light Blue for Power
-        'pf': { c1: '#A78BFA', c2: '#7C3AED' }  // Purple for Power Factor
+        'v':  { c1: '#FBBF24', c2: '#F59E0B' },
+        'i':  { c1: '#34D399', c2: '#10B981' },
+        'kw': { c1: '#38BDF8', c2: '#0284C7' },
+        'pf': { c1: '#A78BFA', c2: '#7C3AED' }
     }[type];
 
     return `
@@ -86,13 +80,12 @@ function makeGauge(id, type, label, maxVal) {
 }
 
 function updateGauge(id, type, val, maxVal) {
-    const pct = Math.min(Math.max(val / maxVal, 0), 1); // clamp between 0 and 1
+    const pct = Math.min(Math.max(val / maxVal, 0), 1);
     const len = (pct * 138.23).toFixed(2);
     const el = document.getElementById(`gauge-${type}-${id}`);
     if (el) el.setAttribute('stroke-dasharray', `${len},138.23`);
 }
 
-// ─── WIDE PANEL TEMPLATE ────────────────────────────────────
 function getPanelHTML(m) {
     return `
     <div class="machine-panel" id="panel-${m.id}">
@@ -125,18 +118,15 @@ function getPanelHTML(m) {
                 <div style="text-align: right;"><span class="thd-badge" id="badge-thdv-${m.id}">NORMAL</span></div>
             </div>
         </div>
-
         <div class="chart-container"><canvas id="chart-${m.id}"></canvas></div>
     </div>`;
 }
 
-// ─── INITIALIZE CHARTS ──────────────────────────────────────
 function initMiniLineChart(id) {
     const ctx = document.getElementById(`chart-${id}`).getContext('2d');
     const grad = ctx.createLinearGradient(0, 0, 0, 70);
     grad.addColorStop(0, 'rgba(0,143,213,0.15)');
     grad.addColorStop(1, 'rgba(0,143,213,0.01)');
-
     machineCharts[id] = new Chart(ctx, {
         type: 'line',
         data: { labels: Array(MAX_PTS).fill(''), datasets: [{ data: Array(MAX_PTS).fill(0), borderColor: '#008FD5', backgroundColor: grad, borderWidth: 1.5, fill: true, pointRadius: 0, tension: 0.3 }] },
@@ -159,23 +149,17 @@ function initRadar(id) {
     });
 }
 
-// ─── DASHBOARD BUILDER ──────────────────────────────────────
 document.addEventListener('DOMContentLoaded', async () => {
     try {
         const response = await fetch(`/static/data/machines_${CURRENT_SECTION}.json`);
         masterMachineList = await response.json();
         
-        let gridHTML = '';
-        let listHTML = '';
-        let selectorsHTML = '';
+        let gridHTML = ''; let listHTML = ''; let selectorsHTML = '';
 
         masterMachineList.forEach((m, idx) => {
             gridHTML += getPanelHTML(m);
             listHTML += `<li><a href="#" style="color:#94A3B8; display:block; padding:10px 20px; text-decoration:none;" onclick="event.preventDefault(); switchTab('live'); setTimeout(() => document.getElementById('panel-${m.id}').scrollIntoView({behavior: 'smooth', block: 'start'}), 50);">${m.name}</a></li>`;
-            
-            // Generate Properly Aligned Checkboxes
             selectorsHTML += `<label class="hist-checkbox-wrapper"><input type="checkbox" class="hist-checkbox" value="${m.id}" ${idx < 3 ? 'checked' : ''} onchange="renderHistoryChart()"> ${m.name}</label>`;
-            
             prevValues[m.id] = { v: 0, i: 0, kw: 0, pf: 0 };
         });
 
@@ -183,33 +167,22 @@ document.addEventListener('DOMContentLoaded', async () => {
         document.getElementById('machine-list').innerHTML = listHTML;
         document.getElementById('hist-machine-selectors').innerHTML = selectorsHTML;
 
-        // Initialize BOTH charts for every machine
-        masterMachineList.forEach(m => {
-            initMiniLineChart(m.id);
-            initRadar(m.id);
-        });
-
+        masterMachineList.forEach(m => { initMiniLineChart(m.id); initRadar(m.id); });
         startPolling();
     } catch (err) { console.error("Initialization Failed:", err); }
 });
 
-// ─── THD SMART ALERT LOGIC ──────────────────────────────────
 function updateTHDBadge(id, val) {
     const badge = document.getElementById(`badge-thdv-${id}`);
     if (!badge) return;
     if (val === '---' || val === 0) { badge.textContent = "NORMAL"; badge.style.color = "#059669"; badge.style.background = "#ECFDF5"; badge.style.borderColor = "#A7F3D0"; return; }
     
     const num = parseFloat(val);
-    if (num < 3.0) {
-        badge.textContent = "NORMAL"; badge.style.color = "#059669"; badge.style.background = "#ECFDF5"; badge.style.borderColor = "#A7F3D0";
-    } else if (num >= 3.0 && num <= 5.0) {
-        badge.textContent = "WARNING"; badge.style.color = "#D97706"; badge.style.background = "#FFFBEB"; badge.style.borderColor = "#FDE68A";
-    } else {
-        badge.textContent = "CRITICAL"; badge.style.color = "#DC2626"; badge.style.background = "#FEF2F2"; badge.style.borderColor = "#FECACA";
-    }
+    if (num < 3.0) { badge.textContent = "NORMAL"; badge.style.color = "#059669"; badge.style.background = "#ECFDF5"; badge.style.borderColor = "#A7F3D0";
+    } else if (num >= 3.0 && num <= 5.0) { badge.textContent = "WARNING"; badge.style.color = "#D97706"; badge.style.background = "#FFFBEB"; badge.style.borderColor = "#FDE68A";
+    } else { badge.textContent = "CRITICAL"; badge.style.color = "#DC2626"; badge.style.background = "#FEF2F2"; badge.style.borderColor = "#FECACA"; }
 }
 
-// ─── LIVE POLLING ───────────────────────────────────────────
 function startPolling() {
     setInterval(async () => {
         try {
@@ -217,7 +190,7 @@ function startPolling() {
             const data = await res.json();
             
             for (const [id, d] of Object.entries(data)) {
-                if(!document.getElementById(`val-v-${id}`)) continue; // Check if gauge text exists
+                if(!document.getElementById(`val-v-${id}`)) continue;
                 
                 const prev = prevValues[id] || { v: 0, i: 0, kw: 0, pf: 0 };
                 const newV = parseFloat(d.v_l1) || 0;
@@ -226,58 +199,47 @@ function startPolling() {
                 const newPF = parseFloat(d.pf) || 0;
                 const thdv = parseFloat(d.thd_v) || 0;
 
-                // Animate Texts inside Gauges
                 animateValue(document.getElementById(`val-v-${id}`), prev.v, newV, 500, 1);
                 animateValue(document.getElementById(`val-i-${id}`), prev.i, newI, 500, 1);
                 animateValue(document.getElementById(`val-kw-${id}`), prev.kw, newKW, 500, 2);
                 animateValue(document.getElementById(`val-pf-${id}`), prev.pf, newPF, 500, 2);
                 
-                // Animate the actual Gauge arcs
                 updateGauge(id, 'v', newV, 300);
                 updateGauge(id, 'i', newI, 3000);
                 updateGauge(id, 'kw', newKW, 500);
                 updateGauge(id, 'pf', newPF, 1.0);
 
-                // Update text stats
                 document.getElementById(`thdv-${id}`).textContent = thdv.toFixed(2);
                 updateTHDBadge(id, thdv);
                 
-                // MWh and Carbon Conversion
                 if (d.kwh_total) {
                     const mwh = parseFloat(d.kwh_total) / 1000;
                     document.getElementById(`kwh-${id}`).textContent = mwh.toFixed(2);
                     document.getElementById(`co2-${id}`).textContent = (mwh * 0.45).toFixed(1);
                 }
                 
-                // Update Phase Radar Chart
                 if (machineRadars[id] && d.v_l1) {
                     machineRadars[id].data.datasets[0].data = [d.v_l1, d.v_l2, d.v_l3];
                     machineRadars[id].data.datasets[1].data = [d.i_l1, d.i_l2, d.i_l3];
                     machineRadars[id].update('none');
                 }
 
-                // Update Mini Line Chart
                 if (machineCharts[id]) {
                     machineCharts[id].data.datasets[0].data.push(newKW);
                     machineCharts[id].data.datasets[0].data.shift();
                     machineCharts[id].update('none');
                 }
 
-                // Status LED
                 const led = document.getElementById(`led-${id}`);
-                if(d.status === 'Online') {
-                    led.classList.remove('offline'); led.classList.add('online');
-                } else {
-                    led.classList.remove('online'); led.classList.add('offline');
-                }
+                if(d.status === 'Online') { led.classList.remove('offline'); led.classList.add('online'); } 
+                else { led.classList.remove('online'); led.classList.add('offline'); }
                 
                 prevValues[id] = { v: newV, i: newI, kw: newKW, pf: newPF };
             }
-        } catch (err) { console.warn("Polling offline..."); }
+        } catch (err) {}
     }, 2000);
 }
 
-// ─── TABS & MASTER HISTORY ──────────────────────────────────
 function switchTab(tabName) {
     document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
     document.querySelectorAll('.view-section').forEach(sec => sec.classList.remove('active'));
@@ -286,9 +248,7 @@ function switchTab(tabName) {
 
     if ((tabName === 'history' || tabName === 'heatmap') && Object.keys(rawHistoryData).length === 0) {
         fetchHistoryData();
-    } else if (tabName === 'heatmap') {
-        renderHeatmap();
-    }
+    } else if (tabName === 'heatmap') { renderHeatmap(); }
 }
 
 function toggleCustomDates() {
@@ -322,25 +282,21 @@ function renderHistoryChart() {
     const selectedIds = Array.from(document.querySelectorAll('.hist-checkbox:checked')).map(cb => cb.value);
     
     const datasets = [];
-    const colors = ['#008FD5', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6'];
+    const colors = ['#008FD5', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6', '#3B82F6', '#14B8A6'];
     
     selectedIds.forEach((id, i) => {
-        if (!rawHistoryData[id]) return;
+        if (!rawHistoryData[id] || rawHistoryData[id].length === 0) return;
         const name = masterMachineList.find(m => m.id == id)?.name || `Unit ${id}`;
         
         const dataPoints = rawHistoryData[id].map(e => {
             let yVal = e[param];
-            
-            // DYNAMIC CONVERSIONS FOR NEW PARAMETERS
+            // Fixes the kWh math dynamically
             if (param === 'kwh' || param === 'co2') {
                 let rawKwh = parseFloat(e.kwh || 0);
-                // Auto-correct old database records that were accidentally saved as Wh
                 if (rawKwh > 100000000) rawKwh = rawKwh / 1000; 
-                
                 let mwh = rawKwh / 1000;
-                yVal = param === 'kwh' ? mwh : (mwh * 0.45); // 0.45 is the CO2 Grid Eq.
+                yVal = param === 'kwh' ? mwh : (mwh * 0.45);
             }
-
             return { x: new Date(e.ts), y: yVal };
         });
 
@@ -354,17 +310,18 @@ function renderHistoryChart() {
     if (masterHistoryChart) masterHistoryChart.destroy();
     masterHistoryChart = new Chart(ctx, {
         type: 'line', data: { datasets },
-        options: { responsive: true, maintainAspectRatio: false, scales: { x: { type: 'time', grid:{display:false} } } }
+        options: { 
+            responsive: true, maintainAspectRatio: false, 
+            scales: { x: { type: 'time', grid:{display:false} } },
+            plugins: { legend: { position: 'top' } }
+        }
     });
 }
 
-// ─── SUBSTATION HEATMAP ENGINE ──────────────────────────────
 function renderHeatmap() {
     if (Object.keys(rawHistoryData).length === 0) return;
-    
     const heatMatrix = Array(7).fill().map(() => Array(24).fill(0));
     
-    // Aggregating load across ALL machines
     for (const dataArray of Object.values(rawHistoryData)) {
         dataArray.forEach(row => {
             const d = new Date(row.ts);
