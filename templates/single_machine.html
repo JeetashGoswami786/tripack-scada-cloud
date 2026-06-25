@@ -403,14 +403,20 @@
             if (!rawHistoryData[MACHINE_ID]) return;
             const param = document.getElementById('hist-param').value;
             const ctx = document.getElementById('master-history-chart').getContext('2d');
-            const dataPoints = rawHistoryData[MACHINE_ID].map(e => ({ x: new Date(e.ts), y: e[param] }));
+            const dataPoints = rawHistoryData[MACHINE_ID].map(entry => {
+                let yVal = entry[param];
+                
+                // DYNAMIC CONVERSIONS FOR NEW PARAMETERS
+                if (param === 'kwh' || param === 'co2') {
+                    let rawKwh = parseFloat(entry.kwh || 0);
+                    // Auto-correct old database records that were accidentally saved as Wh
+                    if (rawKwh > 100000000) rawKwh = rawKwh / 1000; 
+                    
+                    let mwh = rawKwh / 1000;
+                    yVal = param === 'kwh' ? mwh : (mwh * 0.45);
+                }
 
-            if (masterHistoryChart) masterHistoryChart.destroy();
-
-            masterHistoryChart = new Chart(ctx, {
-                type: 'line',
-                data: { datasets: [{ label: MACHINE_NAME, data: dataPoints, borderColor: '#008FD5', backgroundColor: 'rgba(0,143,213,0.1)', borderWidth: 2, pointRadius: 0, fill: true }] },
-                options: { responsive: true, maintainAspectRatio: false, scales: { x: { type: 'time', time: { tooltipFormat: 'dd MMM, HH:mm' }, grid: { display: false } } } }
+                return { x: new Date(entry.ts), y: yVal };
             });
         }
 
