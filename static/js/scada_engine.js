@@ -327,9 +327,26 @@ function renderHistoryChart() {
     selectedIds.forEach((id, i) => {
         if (!rawHistoryData[id]) return;
         const name = masterMachineList.find(m => m.id == id)?.name || `Unit ${id}`;
+        
+        const dataPoints = rawHistoryData[id].map(e => {
+            let yVal = e[param];
+            
+            // DYNAMIC CONVERSIONS FOR NEW PARAMETERS
+            if (param === 'kwh' || param === 'co2') {
+                let rawKwh = parseFloat(e.kwh || 0);
+                // Auto-correct old database records that were accidentally saved as Wh
+                if (rawKwh > 100000000) rawKwh = rawKwh / 1000; 
+                
+                let mwh = rawKwh / 1000;
+                yVal = param === 'kwh' ? mwh : (mwh * 0.45); // 0.45 is the CO2 Grid Eq.
+            }
+
+            return { x: new Date(e.ts), y: yVal };
+        });
+
         datasets.push({
             label: name,
-            data: rawHistoryData[id].map(e => ({ x: new Date(e.ts), y: e[param] })),
+            data: dataPoints,
             borderColor: colors[i % colors.length], borderWidth: 2, pointRadius: 0, tension: 0.2
         });
     });
