@@ -4,191 +4,145 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{{ section_name }} - Master SCADA</title>
-    <meta name="description" content="Industrial SCADA HMI Dashboard — Real-time energy monitoring">
+    
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800;900&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns"></script>
+    <script src="https://cdn.jsdelivr.net/npm/apexcharts"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
-
+    <link rel="stylesheet" href="/static/css/hmi_styles.css?v=5">
+    
     <style>
-        html, body {
-            background-color: #eef1f5 !important;
-            color: #1a2332 !important;
-            font-family: 'Inter', -apple-system, sans-serif;
-            margin: 0; padding: 0;
-            height: 100vh;
-            display: flex;
-            flex-direction: column;
-            scroll-behavior: smooth; /* Essential for Anchor Scrolling */
-        }
-        .history-controls { display: grid; grid-template-columns: auto auto auto; gap: 20px; align-items: start; background: #1a2332; padding: 20px; border-radius: 8px; margin-bottom: 20px; border: 1px solid #2C4A6E; }
-        .export-btn { padding: 9px 15px; border: none; border-radius: 4px; font-weight: 600; cursor: pointer; transition: 0.2s; font-family: 'Inter'; font-size: 13px; color: white; }
-        .export-btn.csv { background: #10B981; }
-        .export-btn.csv:hover { background: #059669; }
-        .export-btn.pdf { background: #EF4444; }
-        .export-btn.pdf:hover { background: #DC2626; }
-
-        /* Layout Wrappers */
-        .page-wrapper { display: flex; flex: 1; overflow: hidden; }
+        /* Premium Light Theme Overrides */
+        body { background: #EEF1F5; color: #1E293B; font-family: 'Inter', sans-serif; }
+        .scada-header { background: #FFFFFF; border-bottom: 2px solid #E2E8F0; padding: 15px 30px; box-shadow: 0 4px 15px rgba(0,0,0,0.02); }
+        .header-title { color: #0F172A; font-weight: 900; }
+        .header-subtitle { color: #10B981; font-family: 'JetBrains Mono'; }
+        .sidebar { background: #0F172A; color: #F8FAFC; }
         
-        /* Sidebar Styling */
-        .sidebar { 
-            width: 260px; 
-            background: #1a2332; 
-            color: white; 
-            overflow-y: auto; 
-            transition: 0.3s;
-            flex-shrink: 0;
-        }
-        .sidebar.closed { margin-left: -260px; }
-        .sidebar-header { padding: 20px; font-weight: 700; border-bottom: 1px solid #2C4A6E; color: #8098B4; }
-        .sidebar-list { list-style: none; padding: 0; margin: 0; }
-        .sidebar-list li a { 
-            display: block; padding: 12px 20px; color: #d1d5db; 
-            text-decoration: none; font-size: 13px; border-bottom: 1px solid #253347;
-        }
-        .sidebar-list li a:hover { background: #253347; color: white; }
-
-        /* Content Area */
-        .main-view { flex: 1; overflow-y: auto; padding: 20px; }
-        
-        /* Hamburger Button */
-        .hamburger { 
-            background: #2C4A6E; color: white; border: none; padding: 10px 15px; 
-            cursor: pointer; font-size: 18px; border-radius: 4px; margin-right: 15px;
-        }
-
-        /* Tab Navigation */
-        .view-tabs { display: flex; gap: 10px; margin-bottom: 20px; border-bottom: 2px solid #2C4A6E; padding-bottom: 10px; }
-        .tab-btn { background: transparent; color: #8098B4; border: none; font-size: 14px; font-weight: 600; font-family: 'Inter', sans-serif; cursor: pointer; padding: 10px 20px; border-radius: 4px; transition: 0.2s; }
-        .tab-btn:hover { background: rgba(255,255,255,0.05); }
+        /* TABS */
+        .view-tabs { display: flex; gap: 10px; margin-bottom: 20px; border-bottom: 2px solid #E2E8F0; padding-bottom: 10px; }
+        .tab-btn { background: transparent; color: #64748B; border: none; font-size: 14px; font-weight: 800; cursor: pointer; padding: 10px 20px; border-radius: 6px; transition: 0.2s; text-transform: uppercase; }
         .tab-btn.active { background: #008FD5; color: white; }
 
-        /* History View Controls */
-        .history-controls { background: #1a2332; padding: 20px; border-radius: 8px; margin-bottom: 20px; border: 1px solid #2C4A6E; }
-        .control-group { margin-bottom: 15px; }
-        .control-group label { display: block; font-size: 11px; color: #8098B4; font-weight: 700; margin-bottom: 8px; letter-spacing: 1px; }
-        .control-group select { background: #0f1623; color: white; border: 1px solid #2C4A6E; padding: 10px; border-radius: 4px; font-family: 'Inter'; width: 250px; outline: none; }
+        /* VIEW SECTIONS */
+        .view-section { display: none; animation: fadeIn 0.3s ease-out; }
+        .view-section.active { display: block; }
+        @keyframes fadeIn { from {opacity: 0;} to {opacity: 1;} }
+
+        /* LIGHT CARDS */
+        .machine-panel { background: #FFFFFF; border: 1px solid #E2E8F0; border-top: 4px solid #008FD5; border-radius: 12px; box-shadow: 0 4px 10px rgba(0,0,0,0.03); margin-bottom: 20px; padding: 20px; transition: 0.3s; }
+        .machine-panel:hover { transform: translateY(-3px); box-shadow: 0 10px 25px rgba(0,143,213,0.1); border-top-color: #10B981; }
+        .machine-name { color: #0F172A; font-weight: 800; font-size: 18px; margin-left: 10px;}
         
-        .machine-checkbox-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 10px; max-height: 150px; overflow-y: auto; padding-right: 10px; }
-        .machine-checkbox-grid label { font-size: 12px; color: #d1d5db; display: flex; align-items: center; gap: 8px; cursor: pointer; font-weight: 500; text-transform: none; letter-spacing: normal; margin-bottom: 0; }
-        .machine-checkbox-grid input[type="checkbox"] { accent-color: #008FD5; cursor: pointer; width: 16px; height: 16px; }
+        .data-row { display: flex; justify-content: space-between; align-items: center; padding: 8px 0; border-bottom: 1px solid #F1F5F9; }
+        .data-label { color: #64748B; font-size: 12px; font-weight: 700; text-transform: uppercase; }
+        .data-value { font-family: 'JetBrains Mono'; font-size: 16px; font-weight: 800; color: #0F172A; }
+        .data-unit { color: #94A3B8; font-size: 12px; font-weight: 700; margin-left: 4px; }
+        
+        /* RADAR CONTAINER */
+        .radar-box { height: 140px; width: 100%; display: flex; justify-content: center; align-items: center; margin-top: 15px; }
 
-        /* Master Chart */
-        .master-chart-container { background: white; padding: 20px; border-radius: 8px; height: 500px; position: relative; box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
-        .loading-history { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); color: #8098B4; font-weight: 600; }
+        /* HISTORY CONTROLS */
+        .history-controls { display: grid; grid-template-columns: auto auto auto; gap: 20px; background: #FFFFFF; padding: 25px; border-radius: 12px; margin-bottom: 20px; border: 1px solid #E2E8F0; }
+        .control-group label { font-size: 11px; color: #64748B; font-weight: 800; margin-bottom: 8px; display: block; }
+        .control-group select, .control-group input { background: #F8FAFC; border: 2px solid #E2E8F0; padding: 10px; border-radius: 6px; width: 250px; font-weight: 600; }
+        .export-btn { padding: 12px 20px; border: none; border-radius: 6px; font-weight: 800; cursor: pointer; color: white; transition: 0.2s; }
+        .export-btn.csv { background: #10B981; }
+        .export-btn.pdf { background: #EF4444; }
+
+        .master-chart-container { background: white; padding: 20px; border-radius: 12px; height: 500px; border: 1px solid #E2E8F0; position: relative; }
     </style>
-
-    <link rel="stylesheet" href="/static/css/animations.css?v=3">
-    <link rel="stylesheet" href="/static/css/hmi_styles.css?v=4">
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 <body>
 
-    <header class="scada-header" id="scada-header">
+    <header class="scada-header">
         <div class="header-left">
             <button class="hamburger" onclick="toggleSidebar()">☰</button>
-            <div class="logo-container">
-                <img src="/static/img/logo.png" alt="Tri-Pack Logo" class="header-logo">
-            </div>
+            <img src="/static/img/logo.png" alt="Tri-Pack" style="height: 40px; margin-right: 15px;">
             <div class="header-title-group">
                 <h1 class="header-title">{{ section_name }}</h1>
-                <span class="header-subtitle">MASTER ENERGY DASHBOARD</span>
+                <span class="header-subtitle">SUBSTATION TELEMETRY</span>
             </div>
         </div>
         <div class="header-right">
-            <div class="header-info-block"><span class="info-label">SYSTEM TIME</span><span class="info-value" id="live-clock">--:--:--</span></div>
-            <div class="header-divider"></div>
-            <div class="header-info-block"><span class="info-label">UPTIME</span><span class="info-value" id="uptime-counter">00:00:00</span></div>
-            <a href="/logout" style="margin-left: 15px; color: #8098B4; font-size: 11px; text-decoration: none; border: 1px solid #2C4A6E; padding: 6px 12px; border-radius: 4px;">LOGOUT</a>
+            <a href="/" style="color: #64748B; text-decoration: none; border: 2px solid #E2E8F0; padding: 8px 16px; border-radius: 6px; font-size: 12px; font-weight: 800;">DISCONNECT</a>
         </div>
     </header>
 
     <div class="page-wrapper">
-        
         <div class="sidebar" id="sidebar">
-            <div class="sidebar-header">MACHINE DIRECTORY</div>
-            <ul class="sidebar-list" id="machine-list">
-                </ul>
+            <div style="padding: 20px; font-weight: 800; color: #94A3B8; border-bottom: 1px solid #334155;">NODE DIRECTORY</div>
+            <ul class="sidebar-list" id="machine-list" style="list-style: none; padding: 0;"></ul>
         </div>
 
-        <main class="main-view">
+        <main class="main-view" style="flex: 1; padding: 30px; overflow-y: auto;">
+            
             <div class="view-tabs">
                 <button class="tab-btn active" id="tab-live" onclick="switchTab('live')">Live Dashboard</button>
                 <button class="tab-btn" id="tab-history" onclick="switchTab('history')">Historical Analysis</button>
+                <button class="tab-btn" id="tab-heatmap" onclick="switchTab('heatmap')">Substation Heatmap</button>
             </div>
 
             <div id="view-live" class="view-section active">
-                <div class="grid-container" id="machine-grid">
+                <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(350px, 1fr)); gap: 20px;" id="machine-grid">
                     </div>
             </div>
 
-            <div id="view-history" class="view-section" style="display: none;">
+            <div id="view-history" class="view-section">
                 <div class="history-controls">
                     <div class="control-group">
                         <label>PARAMETER</label>
                         <select id="hist-param" onchange="renderHistoryChart()">
                             <option value="kw">Active Power (kW)</option>
-                            <option value="v_l1">Voltage (V)</option>
-                            <option value="i_l1">Current (A)</option>
-                            <option value="pf">Power Factor</option>
-                            <option value="kwh">Active Energy (kWh)</option>
+                            <option value="v_l1">Voltage L1 (V)</option>
+                            <option value="thd_v">Voltage Harmonics (THD-V)</option>
                         </select>
                     </div>
-                    
                     <div class="control-group">
                         <label>TIME RANGE</label>
-                        <select id="hist-timeframe" onchange="toggleCustomDates(); fetchHistoryData()">
-                            <option value="1h">Last Hour</option>
-                            <option value="8h">Last Shift (8 Hours)</option>
-                            <option value="24h" selected>Last Day (24 Hours)</option>
-                            <option value="7d">Last Week (7 Days)</option>
-                            <option value="30d">Last Month (30 Days)</option>
-                            <option value="custom">Custom Date & Time</option>
+                        <select id="hist-timeframe" onchange="fetchHistoryData()">
+                            <option value="24h">Last 24 Hours</option>
+                            <option value="7d">Last 7 Days</option>
                         </select>
-                        <div id="custom-date-pickers" style="display: none; margin-top: 10px; gap: 10px; flex-direction: column;">
-                            <input type="datetime-local" id="hist-start" style="background: #0f1623; color: white; border: 1px solid #2C4A6E; padding: 8px; border-radius: 4px; color-scheme: dark;">
-                            <input type="datetime-local" id="hist-end" style="background: #0f1623; color: white; border: 1px solid #2C4A6E; padding: 8px; border-radius: 4px; color-scheme: dark;">
-                            <button onclick="fetchHistoryData()" style="background: #008FD5; color: white; border: none; padding: 8px; border-radius: 4px; cursor: pointer; font-weight: bold;">Apply Range</button>
-                        </div>
                     </div>
-
                     <div class="control-group">
                         <label>REPORTING</label>
                         <div style="display: flex; gap: 10px;">
-                            <button class="export-btn csv" onclick="downloadCSV()">⬇ Excel / CSV</button>
-                            <button class="export-btn pdf" onclick="downloadPDF()">📄 PDF Report</button>
+                            <button class="export-btn csv" onclick="downloadCSV()">⬇ EXCEL / CSV</button>
+                            <button class="export-btn pdf" onclick="downloadPDF()">📄 PDF REPORT</button>
                         </div>
                     </div>
-
                     <div class="control-group" style="grid-column: 1 / -1;">
                         <label>COMPARE MACHINES</label>
-                        <div id="hist-machine-selectors" class="machine-checkbox-grid">
-                            </div>
+                        <div id="hist-machine-selectors" style="display: flex; gap: 15px; flex-wrap: wrap;"></div>
                     </div>
                 </div>
-                
-                <div class="master-chart-container">
-                    <div class="loading-history" id="hist-loader" style="display: none;">Fetching Cloud Data...</div>
+                <div class="master-chart-container" id="chart-export-area">
                     <canvas id="master-history-chart"></canvas>
                 </div>
             </div>
+
+            <div id="view-heatmap" class="view-section">
+                <div class="history-controls" style="grid-template-columns: 1fr;">
+                    <div class="control-group">
+                        <label>TOTAL SUBSTATION LOAD INTENSITY (kW)</label>
+                        <p style="font-size: 13px; color: #64748B;">Aggregated demand across all machines in this sector.</p>
+                    </div>
+                </div>
+                <div class="master-chart-container" style="height: auto;">
+                    <div id="apex-heatmap"></div>
+                </div>
+            </div>
+
         </main>
     </div>
 
-    <footer class="scada-footer">
-        <span class="footer-item">SCADA HMI v2.0 · Modbus TCP/IP Protocol</span>
-    </footer>
-
     <script>
-        function toggleSidebar() {
-            document.getElementById('sidebar').classList.toggle('closed');
-        }
         const CURRENT_SECTION = "{{ section_id }}";
+        function toggleSidebar() { document.getElementById('sidebar').classList.toggle('closed'); }
     </script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js">
-    </script>
-    <script src="/static/js/scada_engine.js?v=3"></script>
-    
+    <script src="/static/js/scada_engine.js?v=6"></script>
 </body>
 </html>
