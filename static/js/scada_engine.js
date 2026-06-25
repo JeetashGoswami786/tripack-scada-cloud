@@ -1,416 +1,194 @@
 /* ============================================================
-   SCADA ENGINE v6.0 — Enterprise with History Module
+   SCADA ENGINE v7.0 — Enterprise Light Theme & Analytics
    ============================================================ */
 
-// ─── GLOBAL STATE ───────────────────────────────────────────
-const machineCharts = {};
-const prevValues = {};
-const MAX_PTS = 25;
-let startTime = new Date();
-
-// History Module State
-let masterHistoryChart = null;
-let rawHistoryData = {};
 let masterMachineList = [];
+let machineRadars = {};
+let rawHistoryData = {};
+let masterHistoryChart = null;
+let apexHeatmap = null;
 
-// ─── LIVE CLOCK & UPTIME ─────────────────────────────────────
-function tickClock() {
-    const now = new Date();
-    const cl = document.getElementById('live-clock');
-    if (cl) cl.textContent = now.toLocaleTimeString('en-GB', { hour12: false });
-    
-    if (startTime) {
-        const s = Math.floor((now - startTime) / 1000);
-        const h = String(Math.floor(s / 3600)).padStart(2,'0');
-        const m = String(Math.floor((s % 3600) / 60)).padStart(2,'0');
-        const sc= String(s % 60).padStart(2,'0');
-        const up = document.getElementById('uptime-counter');
-        if (up) up.textContent = `${h}:${m}:${sc}`;
-    }
-}
-setInterval(tickClock, 1000);
-document.addEventListener('DOMContentLoaded', async () => {
-    console.log("Initializing Dashboard for:", CURRENT_SECTION);
-    
-    // FIX: Changed 'init()' to 'initDashboard()'
-    await initDashboard(); 
-    
-    // startPolling is called inside initDashboard, so you don't need it here!
-});
-
-// ─── UTILITIES & ANIMATIONS ─────────────────────────────────
-function animateValue(el, from, to, ms, dp = 1) {
-    if (!el) return;
-    if (isNaN(from) || isNaN(to)) { el.textContent = isNaN(to) ? '---' : to.toFixed(dp); return; }
-    const diff = to - from;
-    if (Math.abs(diff) < 0.005) { el.textContent = to.toFixed(dp); return; }
-    const t0 = performance.now();
-    function tick(now) {
-        const p = Math.min((now - t0) / ms, 1);
-        el.textContent = (from + diff * (1 - Math.pow(1 - p, 3))).toFixed(dp);
-        if (p < 1) requestAnimationFrame(tick);
-    }
-    requestAnimationFrame(tick);
-}
-
-// ─── GAUGE BUILDERS ─────────────────────────────────────────
-function buildTicks() {
-    let s = '';
-    for (let i = 0; i <= 10; i++) {
-        const ang = Math.PI + (Math.PI * i / 10);
-        const major = i % 5 === 0;
-        const r0 = major ? 38 : 41;
-        const r1 = 45;
-        s += `<line x1="${(60 + r0 * Math.cos(ang)).toFixed(1)}" y1="${(56 + r0 * Math.sin(ang)).toFixed(1)}" x2="${(60 + r1 * Math.cos(ang)).toFixed(1)}" y2="${(56 + r1 * Math.sin(ang)).toFixed(1)}" class="${major ? 'gauge-tick-major' : 'gauge-tick'}" />`;
-    }
-    return s;
-}
-
-function makeSVG(id) {
-    return `
-    <svg viewBox="0 0 120 72" class="industrial-gauge">
-      <defs>
-        <linearGradient id="gGrad-${id}" x1="0%" y1="0%" x2="100%" y2="0%">
-          <stop offset="0%" stop-color="#006FAD"/><stop offset="100%" stop-color="#008FD5"/>
-        </linearGradient>
-      </defs>
-      ${buildTicks()}
-      <path class="gauge-track" d="M 16 56 A 44 44 0 0 1 104 56"/>
-      <path class="gauge-fill" id="gauge-${id}" d="M 16 56 A 44 44 0 0 1 104 56" stroke="url(#gGrad-${id})" stroke-dasharray="0,138.23"/>
-      <text x="60" y="51" class="gauge-value" id="i-${id}">0</text>
-      <text x="60" y="61" class="gauge-unit">CURRENT (A)</text>
-      <text x="17" y="68" class="gauge-range-label" text-anchor="start">0</text>
-      <text x="103" y="68" class="gauge-range-label" text-anchor="end">3000</text>
-    </svg>`;
-}
-
-function setGauge(id, ampere) {
-    const pct = Math.min(ampere / 3000, 1);
-    const len = (pct * 138.23).toFixed(2);
-    const el = document.getElementById(`gauge-${id}`);
-    if (el) el.setAttribute('stroke-dasharray', `${len},138.23`);
-}
-
-// ─── HTML PANEL TEMPLATE ────────────────────────────────────
+// --- DYNAMIC CARD GENERATOR ---
 function getPanelHTML(m) {
     return `
-    <div class="machine-panel online" id="panel-${m.id}" style="--delay:${(m.id * 0.05).toFixed(2)}s">
-        <div class="panel-status-bar" id="sbar-${m.id}"></div>
-        <div class="panel-header">
-            <div class="panel-title-group">
-                <span class="status-led online" id="led-${m.id}"></span>
-                <h2 class="machine-name">${m.name}</h2>
-            </div>
-            <div class="panel-badges">
-                <span class="device-id">UNIT ${m.id}</span>
-                <span class="status-badge online" id="badge-${m.id}">ONLINE</span>
-            </div>
+    <div class="machine-panel" id="panel-${m.id}">
+        <div style="display: flex; align-items: center; border-bottom: 2px solid #F1F5F9; padding-bottom: 10px; margin-bottom: 15px;">
+            <div style="width: 12px; height: 12px; border-radius: 50%; background: #10B981; box-shadow: 0 0 8px #10B981;" id="led-${m.id}"></div>
+            <h2 class="machine-name">${m.name}</h2>
         </div>
-        <div class="panel-body">
-            <div class="data-column">
-                <div class="data-row"><span class="data-label">Voltage L1</span><div class="data-value-group"><span class="data-value" id="v-${m.id}">---</span><span class="data-unit">V</span></div></div>
-                <div class="data-bar"><div class="data-bar-fill bar-voltage" id="vbar-${m.id}" style="width:0"></div></div>
-                
-                <div class="data-row"><span class="data-label">Power Factor</span><div class="data-value-group"><span class="data-value" id="pf-${m.id}">---</span></div></div>
-                <div class="data-bar"><div class="data-bar-fill bar-pf" id="pfbar-${m.id}" style="width:0"></div></div>
-                
-                <div class="data-row"><span class="data-label">Active Power</span><div class="data-value-group"><span class="data-value" id="kw-${m.id}">---</span><span class="data-unit">kW</span></div></div>
-                <div class="data-bar"><div class="data-bar-fill bar-power" id="kwbar-${m.id}" style="width:0"></div></div>
-
-                <div class="data-row">
-                    <span class="data-label">ACTIVE ENERGY</span>
-                    <span class="data-value"><span id="kwh-${m.id}">---</span> <span class="unit">kWh</span></span>
-                </div>
-                <div class="data-row"><span class="data-label">Frequency</span><div class="data-value-group"><span class="data-value" id="freq-${m.id}">50.0</span><span class="data-unit">Hz</span></div></div>
+        
+        <div style="display: flex; justify-content: space-between;">
+            <div style="flex: 1; padding-right: 15px; border-right: 1px solid #F1F5F9;">
+                <div class="data-row"><span class="data-label">Voltage L1</span><span class="data-value" id="v-${m.id}">---</span><span class="data-unit">V</span></div>
+                <div class="data-row"><span class="data-label">Active Power</span><span class="data-value" style="color:#008FD5;" id="kw-${m.id}">---</span><span class="data-unit">kW</span></div>
+                <div class="data-row"><span class="data-label">Total Energy</span><span class="data-value" style="color:#10B981;" id="kwh-${m.id}">---</span><span class="data-unit">MWh</span></div>
+                <div class="data-row"><span class="data-label">CO₂ Eq.</span><span class="data-value" id="co2-${m.id}">---</span><span class="data-unit">Tons</span></div>
+                <div class="data-row"><span class="data-label">THD-V (Harmonics)</span><span class="data-value" id="thdv-${m.id}">---</span><span class="data-unit">%</span></div>
             </div>
-            <div class="gauge-column">${makeSVG(m.id)}</div>
-        </div>
-        <div class="chart-container"><canvas id="chart-${m.id}"></canvas></div>
-        <div class="panel-footer">
-            <button class="detail-btn">⊞ EXPAND</button>
-            <span class="last-update" id="ts-${m.id}">--:--:--</span>
+            <div style="flex: 1; padding-left: 10px;">
+                <span class="data-label" style="display:block; text-align:center;">Phase Radar</span>
+                <div class="radar-box"><canvas id="radar-${m.id}"></canvas></div>
+            </div>
         </div>
     </div>`;
 }
 
-function initChart(id) {
-    const ctx = document.getElementById(`chart-${id}`).getContext('2d');
-    const grad = ctx.createLinearGradient(0, 0, 0, 80);
-    grad.addColorStop(0, 'rgba(0,143,213,0.15)');
-    grad.addColorStop(1, 'rgba(0,143,213,0.01)');
-
-    machineCharts[id] = new Chart(ctx, {
-        type: 'line',
-        data: { labels: Array(MAX_PTS).fill(''), datasets: [{ data: Array(MAX_PTS).fill(0), borderColor: '#008FD5', backgroundColor: grad, borderWidth: 1.5, fill: true, pointRadius: 0, tension: 0.4 }] },
-        options: { responsive: true, maintainAspectRatio: false, animation: false, scales: { y: { display: false }, x: { display: false } }, plugins: { legend: { display: false }, tooltip: { enabled: false } } }
+function initRadar(id) {
+    const ctx = document.getElementById(`radar-${id}`).getContext('2d');
+    machineRadars[id] = new Chart(ctx, {
+        type: 'radar',
+        data: {
+            labels: ['L1', 'L2', 'L3'],
+            datasets: [
+                { data: [0,0,0], borderColor: '#008FD5', backgroundColor: 'rgba(0,143,213,0.2)', borderWidth: 2 },
+                { data: [0,0,0], borderColor: '#10B981', backgroundColor: 'rgba(16,185,129,0.2)', borderWidth: 2 }
+            ]
+        },
+        options: { responsive: true, maintainAspectRatio: false, scales: { r: { ticks: { display: false } } }, plugins: { legend: { display: false } } }
     });
 }
 
-// ─── TAB SWITCHING & HISTORY MODULE ─────────────────────────
-function switchTab(tabName) {
-    document.getElementById('tab-live').classList.toggle('active', tabName === 'live');
-    document.getElementById('tab-history').classList.toggle('active', tabName === 'history');
-    
-    document.getElementById('view-live').style.display = tabName === 'live' ? 'block' : 'none';
-    document.getElementById('view-history').style.display = tabName === 'history' ? 'block' : 'none';
-
-    if (tabName === 'history') {
-        fetchHistoryData();
-    }
-}
-
-async function fetchHistoryData() {
-    document.getElementById('hist-loader').style.display = 'block';
-    const timeframe = document.getElementById('hist-timeframe').value;
-    
-    let url = `/api/history/${CURRENT_SECTION}?timeframe=${timeframe}`;
-    
-    // NEW CUSTOM DATE LOGIC
-    if (timeframe === 'custom') {
-        const startVal = document.getElementById('hist-start').value;
-        const endVal = document.getElementById('hist-end').value;
-        
-        if (!startVal || !endVal) {
-            alert("Please select both a Start and End date.");
-            document.getElementById('hist-loader').style.display = 'none';
-            return;
-        }
-        
-        const startDate = new Date(startVal);
-        const endDate = new Date(endVal);
-        
-        // Safety Check: Prevent Zero-Minute or Backwards requests
-        if (startDate >= endDate) {
-            alert("⚠️ Invalid Range: End Date must be LATER than the Start Date!");
-            document.getElementById('hist-loader').style.display = 'none';
-            return;
-        }
-
-        // Convert local Pakistan time to Universal Cloud Time (UTC)
-        const startUTC = startDate.toISOString();
-        const endUTC = endDate.toISOString();
-        
-        url += `&start=${encodeURIComponent(startUTC)}&end=${encodeURIComponent(endUTC)}`;
-    }
-    
-    try {
-        const res = await fetch(url);
-        rawHistoryData = await res.json();
-        document.getElementById('hist-loader').style.display = 'none';
-        renderHistoryChart();
-    } catch (err) {
-        console.error("Failed to load history:", err);
-        document.getElementById('hist-loader').textContent = "Error loading data.";
-    }
-}
-
-function downloadCSV() {
-    const timeframe = document.getElementById('hist-timeframe').value;
-    let url = `/api/export_csv/${CURRENT_SECTION}?timeframe=${timeframe}`;
-    
-    if (timeframe === 'custom') {
-        const startVal = document.getElementById('hist-start').value;
-        const endVal = document.getElementById('hist-end').value;
-        
-        if (!startVal || !endVal) {
-            alert("Please select both a Start and End date to export.");
-            return;
-        }
-        
-        const startDate = new Date(startVal);
-        const endDate = new Date(endVal);
-        
-        if (startDate >= endDate) {
-            alert("⚠️ Invalid Range: End Date must be LATER than the Start Date!");
-            return;
-        }
-
-        // Convert local Pakistan time to Universal Cloud Time (UTC)
-        url += `&start=${encodeURIComponent(startDate.toISOString())}&end=${encodeURIComponent(endDate.toISOString())}`;
-    }
-    window.location.href = url;
-}
-
-function downloadPDF() {
-    const element = document.querySelector('.master-chart-container');
-    const tfLabel = document.getElementById('hist-timeframe').options[document.getElementById('hist-timeframe').selectedIndex].text;
-    
-    const opt = {
-        margin:       0.2, // Tighter margin to leave room for the chart
-        filename:     `SCADA_Report_${tfLabel}.pdf`,
-        image:        { type: 'png', quality: 1.0 }, // PNG prevents text blurring
-        html2canvas:  { 
-            scale: 2, 
-            backgroundColor: '#ffffff',
-            useCORS: true
-        }, 
-        // FIX: Upgraded to 'a3' paper size to completely stop edge cropping
-        jsPDF:        { unit: 'in', format: 'a3', orientation: 'landscape' }
-    };
-    
-    html2pdf().set(opt).from(element).save();
-}
-
-function renderHistoryChart() {
-    const param = document.getElementById('hist-param').value;
-    const ctx = document.getElementById('master-history-chart').getContext('2d');
-    
-    // Find which checkboxes are checked
-    const selectedIds = Array.from(document.querySelectorAll('.hist-checkbox:checked')).map(cb => cb.value);
-    
-    const datasets = [];
-    const colors = ['#008FD5', '#EF4444', '#10B981', '#F59E0B', '#8B5CF6']; // Color palette for multiple lines
-    let colorIdx = 0;
-
-    selectedIds.forEach(id => {
-        if (!rawHistoryData[id]) return;
-
-        // Find machine name for the legend
-        const mObj = masterMachineList.find(m => m.id == id);
-        const name = mObj ? mObj.name : `Unit ${id}`;
-
-        const dataPoints = rawHistoryData[id].map(entry => ({
-            x: new Date(entry.ts),
-            y: entry[param]
-        }));
-
-        datasets.push({
-            label: name,
-            data: dataPoints,
-            borderColor: colors[colorIdx % colors.length],
-            borderWidth: 2,
-            pointRadius: 0,
-            tension: 0.2,
-            fill: false
-        });
-        colorIdx++;
-    });
-
-    if (masterHistoryChart) {
-        masterHistoryChart.destroy();
-    }
-
-    masterHistoryChart = new Chart(ctx, {
-        type: 'line',
-        data: { datasets: datasets },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            scales: {
-                x: { 
-                    type: 'time', 
-                    time: { tooltipFormat: 'dd MMM, HH:mm' },
-                    grid: { display: false }
-                },
-                y: { beginAtZero: true }
-            },
-            plugins: {
-                legend: { position: 'top', align: 'end' },
-                tooltip: { mode: 'index', intersect: false }
-            }
-        }
-    });
-}
-
-// --- NEW LOGIC TO SHOW/HIDE CUSTOM DATES ---
-function toggleCustomDates() {
-    const tf = document.getElementById('hist-timeframe').value;
-    document.getElementById('custom-date-pickers').style.display = tf === 'custom' ? 'flex' : 'none';
-}
-
-// ─── DASHBOARD BUILDER ──────────────────────────────────────
-async function initDashboard() {
+// --- INITIALIZATION ---
+document.addEventListener('DOMContentLoaded', async () => {
     try {
         const response = await fetch(`/static/data/machines_${CURRENT_SECTION}.json`);
         masterMachineList = await response.json();
         
-        const grid = document.getElementById('machine-grid');
-        const sidebar = document.getElementById('machine-list');
-        const histSelectors = document.getElementById('hist-machine-selectors');
-        
-        let gridHTML = ''; 
-        let histHTML = '';
+        let gridHTML = '';
+        let listHTML = '';
+        let selectorsHTML = '';
 
         masterMachineList.forEach((m, idx) => {
-            const li = document.createElement('li');
-            // FIX: The Scroll Glitch is solved here using setTimeout
-            li.innerHTML = `<a href="#" onclick="event.preventDefault(); switchTab('live'); setTimeout(() => document.getElementById('panel-${m.id}').scrollIntoView({behavior: 'smooth', block: 'start'}), 50);">${m.name}</a>`;
-            sidebar.appendChild(li);
-
-            const isChecked = idx < 2 ? 'checked' : '';
-            histHTML += `<label><input type="checkbox" class="hist-checkbox" value="${m.id}" ${isChecked} onchange="renderHistoryChart()"> ${m.name}</label>`;
             gridHTML += getPanelHTML(m);
+            listHTML += `<li><a href="#" style="color:#94A3B8; display:block; padding:10px 20px; text-decoration:none;" onclick="event.preventDefault(); document.getElementById('panel-${m.id}').scrollIntoView({behavior: 'smooth'});">${m.name}</a></li>`;
+            selectorsHTML += `<label style="font-size:12px; font-weight:700;"><input type="checkbox" class="hist-checkbox" value="${m.id}" ${idx < 3 ? 'checked' : ''} onchange="renderHistoryChart()"> ${m.name}</label>`;
         });
 
-        grid.innerHTML = gridHTML;
-        histSelectors.innerHTML = histHTML;
+        document.getElementById('machine-grid').innerHTML = gridHTML;
+        document.getElementById('machine-list').innerHTML = listHTML;
+        document.getElementById('hist-machine-selectors').innerHTML = selectorsHTML;
 
-        const loader = document.getElementById('loading-state') || document.querySelector('.loading-state');
-        if (loader) loader.remove();
-
-        masterMachineList.forEach(m => {
-            initChart(m.id);
-            prevValues[m.id] = { v: 0, i: 0, kw: 0, pf: 0 };
-        });
-
+        masterMachineList.forEach(m => initRadar(m.id));
         startPolling();
-    } catch (err) { console.error("Initialization Failed:", err); }
-}
+    } catch (err) { console.error("Load Failed:", err); }
+});
 
-// ─── LIVE POLLING ───────────────────────────────────────────
-async function startPolling() {
+// --- LIVE POLLING ---
+function startPolling() {
     setInterval(async () => {
         try {
             const res = await fetch(`/api/live_data/${CURRENT_SECTION}`);
             const data = await res.json();
             
             for (const [id, d] of Object.entries(data)) {
-                const vEl = document.getElementById(`v-${id}`);
-                if (!vEl) continue;
+                if(!document.getElementById(`v-${id}`)) continue;
                 
-                const prev = prevValues[id] || { v: 0, i: 0, kw: 0, pf: 0, kwh: 0 };
-                const newV = parseFloat(d.v_l1) || 0;
-                const newKW = parseFloat(d.kw) || 0;
-                const newI = parseFloat(d.i_l1) || 0;
-                const newKWH = parseFloat(d.kwh_total) || 0; // Grab the new KWh value
-
-                animateValue(vEl, prev.v, newV, 500, 1);
-                document.getElementById(`pf-${id}`).textContent = parseFloat(d.pf).toFixed(2);
-                document.getElementById(`kw-${id}`).textContent = newKW.toFixed(1);
+                document.getElementById(`v-${id}`).textContent = d.v_l1 || '---';
+                document.getElementById(`kw-${id}`).textContent = d.kw || '---';
+                document.getElementById(`thdv-${id}`).textContent = d.thd_v || '0.0';
                 
-                // NEW: Update the KWh display (Ensure you have an element with id="kwh-${id}")
-                const kwhEl = document.getElementById(`kwh-${id}`);
-                if (kwhEl) {
-                    kwhEl.textContent = newKWH.toFixed(1);
+                // MWh and Carbon
+                if (d.kwh_total) {
+                    const mwh = parseFloat(d.kwh_total) / 1000;
+                    document.getElementById(`kwh-${id}`).textContent = mwh.toFixed(1);
+                    document.getElementById(`co2-${id}`).textContent = (mwh * 0.45).toFixed(1);
                 }
                 
-                document.getElementById(`vbar-${id}`).style.width = Math.min((newV / 250) * 100, 100) + '%';
-                document.getElementById(`pfbar-${id}`).style.width = (parseFloat(d.pf) * 100) + '%';
-                document.getElementById(`kwbar-${id}`).style.width = Math.min((newKW / 50) * 100, 100) + '%';
-
-                setGauge(id, newI);
-                animateValue(document.getElementById(`i-${id}`), prev.i, newI, 500, 0);
-                document.getElementById(`ts-${id}`).textContent = new Date().toLocaleTimeString('en-GB',{hour12:false});
-
-                if (machineCharts[id]) {
-                    machineCharts[id].data.datasets[0].data.push(newKW);
-                    machineCharts[id].data.datasets[0].data.shift();
-                    machineCharts[id].update('none');
+                // Radar Update
+                if (machineRadars[id] && d.v_l1) {
+                    machineRadars[id].data.datasets[0].data = [d.v_l1, d.v_l2, d.v_l3];
+                    machineRadars[id].data.datasets[1].data = [d.i_l1, d.i_l2, d.i_l3];
+                    machineRadars[id].update('none');
                 }
 
-                prevValues[id] = { v: newV, i: newI, kw: newKW, pf: d.pf, kwh: newKWH };
+                // Status LED
+                const led = document.getElementById(`led-${id}`);
+                if(d.status === 'Online') {
+                    led.style.background = '#10B981'; led.style.boxShadow = '0 0 8px #10B981';
+                } else {
+                    led.style.background = '#EF4444'; led.style.boxShadow = '0 0 8px #EF4444';
+                }
             }
-        } catch (err) { console.warn("Polling offline..."); }
+        } catch (err) {}
     }, 2000);
 }
 
-// Ensure Chart.js Time Adapter is loaded for the History Chart to work
-const script = document.createElement('script');
-script.src = 'https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns/dist/chartjs-adapter-date-fns.bundle.min.js';
-document.head.appendChild(script);
-// Add this to the very bottom of scada_engine.js
-document.addEventListener('DOMContentLoaded', async () => {
-    console.log("Initializing Dashboard for:", CURRENT_SECTION);
-    await init(); // This builds the cards
-    startPolling(); // This starts the live data loop
-});
+// --- TABS & HISTORY ---
+function switchTab(tabName) {
+    document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+    document.querySelectorAll('.view-section').forEach(sec => sec.classList.remove('active'));
+    document.getElementById(`tab-${tabName}`).classList.add('active');
+    document.getElementById(`view-${tabName}`).classList.add('active');
+
+    if ((tabName === 'history' || tabName === 'heatmap') && Object.keys(rawHistoryData).length === 0) {
+        fetchHistoryData();
+    } else if (tabName === 'heatmap') {
+        renderHeatmap();
+    }
+}
+
+async function fetchHistoryData() {
+    const tf = document.getElementById('hist-timeframe').value;
+    try {
+        const res = await fetch(`/api/history/${CURRENT_SECTION}?timeframe=${tf}`);
+        rawHistoryData = await res.json();
+        renderHistoryChart();
+        if (document.getElementById('tab-heatmap').classList.contains('active')) renderHeatmap();
+    } catch (err) { console.error(err); }
+}
+
+function renderHistoryChart() {
+    const param = document.getElementById('hist-param').value;
+    const ctx = document.getElementById('master-history-chart').getContext('2d');
+    const selectedIds = Array.from(document.querySelectorAll('.hist-checkbox:checked')).map(cb => cb.value);
+    
+    const datasets = [];
+    const colors = ['#008FD5', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6'];
+    
+    selectedIds.forEach((id, i) => {
+        if (!rawHistoryData[id]) return;
+        const name = masterMachineList.find(m => m.id == id)?.name || `Unit ${id}`;
+        datasets.push({
+            label: name,
+            data: rawHistoryData[id].map(e => ({ x: new Date(e.ts), y: e[param] })),
+            borderColor: colors[i % colors.length], borderWidth: 2, pointRadius: 0, tension: 0.2
+        });
+    });
+
+    if (masterHistoryChart) masterHistoryChart.destroy();
+    masterHistoryChart = new Chart(ctx, {
+        type: 'line', data: { datasets },
+        options: { responsive: true, maintainAspectRatio: false, scales: { x: { type: 'time', grid:{display:false} } } }
+    });
+}
+
+// --- SUBSTATION AGGREGATE HEATMAP ---
+function renderHeatmap() {
+    if (Object.keys(rawHistoryData).length === 0) return;
+    
+    const heatMatrix = Array(7).fill().map(() => Array(24).fill(0));
+    
+    // Sum up the kW of EVERY machine in the substation for total load tracking!
+    for (const dataArray of Object.values(rawHistoryData)) {
+        dataArray.forEach(row => {
+            const d = new Date(row.ts);
+            heatMatrix[d.getDay()][d.getHours()] += parseFloat(row.kw || 0);
+        });
+    }
+
+    const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+    const seriesData = days.map((dayName, dIdx) => ({
+        name: dayName,
+        data: Array.from({length:24}, (_,h) => ({ x: `${h}:00`, y: heatMatrix[dIdx][h].toFixed(1) }))
+    }));
+
+    if (apexHeatmap) apexHeatmap.destroy();
+    apexHeatmap = new ApexCharts(document.querySelector("#apex-heatmap"), {
+        series: seriesData, chart: { height: 450, type: 'heatmap', toolbar: { show: false } },
+        colors: ["#EF4444"], dataLabels: { enabled: false }
+    });
+    apexHeatmap.render();
+}
+
+function downloadCSV() { window.location.href = `/api/export_csv/${CURRENT_SECTION}?timeframe=${document.getElementById('hist-timeframe').value}`; }
+function downloadPDF() { html2pdf().set({ margin: 0.2, filename: `${CURRENT_SECTION}_Report.pdf`, jsPDF: { format: 'a3', orientation: 'landscape' } }).from(document.getElementById('chart-export-area')).save(); }
