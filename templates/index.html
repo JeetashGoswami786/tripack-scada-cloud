@@ -11,14 +11,11 @@
     <script src="https://cdn.jsdelivr.net/npm/apexcharts"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 
-    <link rel="stylesheet" href="/static/css/animations.css?v=3">
-    <link rel="stylesheet" href="/static/css/hmi_styles.css?v=5">
-    
     <style>
-        /* PREMIUM LIGHT THEME + PERFECT LAYOUT */
-        html, body { background-color: #EEF1F5 !important; color: #1E293B !important; font-family: 'Inter', sans-serif; margin: 0; padding: 0; height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
+        /* PREMIUM LIGHT THEME */
+        html, body { background-color: #EEF1F5; color: #1E293B; font-family: 'Inter', sans-serif; margin: 0; padding: 0; height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
         
-        /* HEADER & CLOCK RESTORED */
+        /* HEADER */
         .scada-header { background: #FFFFFF; border-bottom: 2px solid #E2E8F0; padding: 12px 25px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 4px 15px rgba(0,0,0,0.02); z-index: 10; }
         .header-left { display: flex; align-items: center; gap: 15px; }
         .hamburger { background: #F1F5F9; color: #0F172A; border: 1px solid #E2E8F0; padding: 8px 12px; cursor: pointer; border-radius: 6px; font-size: 16px; font-weight: bold; transition: 0.2s; }
@@ -33,7 +30,7 @@
         .logout-btn { color: #64748B; text-decoration: none; border: 2px solid #E2E8F0; padding: 8px 16px; border-radius: 6px; font-size: 12px; font-weight: 800; transition: 0.2s; }
         .logout-btn:hover { background: #EF4444; color: white; border-color: #EF4444; }
 
-        /* SIDEBAR RESTORED */
+        /* SIDEBAR */
         .page-wrapper { display: flex; flex: 1; overflow: hidden; }
         .sidebar { width: 260px; background: #0F172A; color: #F8FAFC; overflow-y: auto; transition: 0.3s; flex-shrink: 0; }
         .sidebar.closed { margin-left: -260px; }
@@ -51,48 +48,58 @@
         .view-section.active { display: block; }
         @keyframes fadeIn { from {opacity: 0;} to {opacity: 1;} }
 
-        /* UPGRADED GRID CARDS (Wider to fit old + new graphics) */
-        .grid-container { display: grid; grid-template-columns: repeat(auto-fill, minmax(500px, 1fr)); gap: 25px; padding-bottom: 40px; }
-        
-        .history-controls { display: grid; grid-template-columns: auto auto auto; gap: 20px; background: #FFFFFF; padding: 25px; border-radius: 12px; margin-bottom: 20px; border: 1px solid #E2E8F0; box-shadow: 0 4px 10px rgba(0,0,0,0.02); }
-        .control-group label { font-size: 11px; color: #64748B; font-weight: 800; margin-bottom: 8px; display: block; letter-spacing: 1px; }
-        .control-group select, .control-group input { background: #F8FAFC; border: 2px solid #E2E8F0; padding: 10px; border-radius: 6px; width: 250px; font-weight: 600; font-family: 'Inter'; outline: none; }
-        .export-btn { padding: 12px 20px; border: none; border-radius: 6px; font-weight: 800; cursor: pointer; color: white; transition: 0.2s; text-transform: uppercase; }
-        .export-btn.csv { background: #10B981; }
-        .export-btn.csv:hover { background: #059669; }
-        .export-btn.pdf { background: #EF4444; }
-        .export-btn.pdf:hover { background: #DC2626; }
-
-        .master-chart-container { background: white; padding: 20px; border-radius: 12px; height: 500px; border: 1px solid #E2E8F0; position: relative; box-shadow: 0 4px 15px rgba(0,0,0,0.03); }
-        
-        /* CARD INTERNALS RESTORED */
-        .machine-panel { background: #FFFFFF; border: 1px solid #E2E8F0; border-top: 4px solid #008FD5; border-radius: 12px; box-shadow: 0 4px 10px rgba(0,0,0,0.03); padding: 20px; }
-        .panel-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #F1F5F9; padding-bottom: 10px; margin-bottom: 15px; }
-        .panel-title-group { display: flex; align-items: center; gap: 10px; }
-        .status-led { width: 12px; height: 12px; border-radius: 50%; }
+        /* FULL WIDTH MACHINE CARDS */
+        #machine-grid { display: flex; flex-direction: column; gap: 30px; padding-bottom: 40px; }
+        .machine-panel { background: #FFFFFF; border: 1px solid #E2E8F0; border-top: 4px solid #008FD5; border-radius: 12px; box-shadow: 0 4px 10px rgba(0,0,0,0.03); padding: 25px; width: 100%; }
+        .panel-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #F1F5F9; padding-bottom: 15px; margin-bottom: 20px; }
+        .panel-title-group { display: flex; align-items: center; gap: 12px; }
+        .status-led { width: 14px; height: 14px; border-radius: 50%; }
         .status-led.online { background: #10B981; box-shadow: 0 0 8px #10B981; }
         .status-led.offline { background: #EF4444; box-shadow: 0 0 8px #EF4444; }
-        .machine-name { margin: 0; font-size: 18px; font-weight: 800; color: #0F172A; }
-        .device-id { font-family: 'JetBrains Mono'; font-size: 11px; color: #64748B; background: #F1F5F9; padding: 4px 8px; border-radius: 4px; font-weight: 700; }
+        .machine-name { margin: 0; font-size: 20px; font-weight: 900; color: #0F172A; }
+        .device-id { font-family: 'JetBrains Mono'; font-size: 12px; color: #64748B; background: #F1F5F9; padding: 4px 10px; border-radius: 4px; font-weight: 800; }
         
-        .panel-body { display: grid; grid-template-columns: 1.5fr 1fr 1fr; gap: 15px; align-items: center; }
-        .data-row { display: flex; justify-content: space-between; align-items: baseline; padding: 6px 0; border-bottom: 1px solid #F8FAFC; }
-        .data-label { color: #64748B; font-size: 12px; font-weight: 700; text-transform: uppercase; }
-        .data-value { font-family: 'JetBrains Mono'; font-size: 16px; font-weight: 800; color: #0F172A; }
-        .data-unit { color: #94A3B8; font-size: 11px; font-weight: 700; margin-left: 4px; }
+        /* NEW WIDE PANEL LAYOUT */
+        .panel-body-wide { display: grid; grid-template-columns: repeat(4, 1fr) 2fr 1.5fr; gap: 25px; align-items: center; margin-bottom: 20px; }
         
-        .chart-container { height: 60px; margin-top: 15px; border-top: 1px solid #F1F5F9; padding-top: 10px; }
-        .radar-box { height: 120px; width: 100%; display: flex; justify-content: center; align-items: center; }
-        
-        /* RESTORED SVG GAUGE CSS */
+        /* GAUGES */
+        .gauge-wrap { text-align: center; }
         .industrial-gauge { width: 100%; max-width: 140px; margin: 0 auto; display: block; }
         .gauge-track { fill: none; stroke: #E2E8F0; stroke-width: 8; stroke-linecap: round; }
         .gauge-fill { fill: none; stroke-width: 8; stroke-linecap: round; transition: stroke-dasharray 0.5s ease-out; }
         .gauge-value { font-family: 'JetBrains Mono', monospace; font-size: 18px; font-weight: bold; fill: #0F172A; text-anchor: middle; }
-        .gauge-unit { font-family: 'Inter', sans-serif; font-size: 7px; font-weight: bold; fill: #64748B; text-anchor: middle; }
+        .gauge-unit { font-family: 'Inter', sans-serif; font-size: 8px; font-weight: 800; fill: #64748B; text-anchor: middle; }
         .gauge-range-label { font-family: 'JetBrains Mono', monospace; font-size: 6px; fill: #94A3B8; }
         .gauge-tick { stroke: #CBD5E1; stroke-width: 1; }
         .gauge-tick-major { stroke: #94A3B8; stroke-width: 2; }
+
+        /* RADAR & STATS */
+        .radar-column { border-left: 2px solid #F1F5F9; border-right: 2px solid #F1F5F9; padding: 0 15px; }
+        .radar-box { height: 140px; width: 100%; display: flex; justify-content: center; align-items: center; margin-top: 5px; }
+        
+        .stats-column { display: flex; flex-direction: column; justify-content: center; gap: 10px; padding-left: 10px; }
+        .data-row { display: flex; justify-content: space-between; align-items: baseline; border-bottom: 1px solid #F8FAFC; padding-bottom: 5px; }
+        .data-label { color: #64748B; font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.5px; }
+        .data-value { font-family: 'JetBrains Mono'; font-size: 16px; font-weight: 800; color: #0F172A; }
+        .data-unit { color: #94A3B8; font-size: 11px; font-weight: 700; margin-left: 4px; }
+        .thd-badge { font-size: 10px; font-weight: 900; padding: 4px 8px; border-radius: 4px; border: 1px solid #A7F3D0; background: #ECFDF5; color: #059669; display: inline-block; letter-spacing: 1px;}
+        
+        .chart-container { height: 80px; margin-top: 20px; border-top: 2px solid #F1F5F9; padding-top: 15px; }
+
+        /* HISTORY TAB CONTROLS */
+        .history-controls { display: grid; grid-template-columns: auto auto auto; gap: 20px; background: #FFFFFF; padding: 25px; border-radius: 12px; margin-bottom: 20px; border: 1px solid #E2E8F0; box-shadow: 0 4px 10px rgba(0,0,0,0.02); }
+        .control-group label { font-size: 11px; color: #64748B; font-weight: 800; margin-bottom: 8px; display: block; letter-spacing: 1px; }
+        .control-group select, .control-group input { background: #F8FAFC; border: 2px solid #E2E8F0; padding: 10px; border-radius: 6px; width: 250px; font-weight: 600; font-family: 'Inter'; outline: none; }
+        .export-btn { padding: 12px 20px; border: none; border-radius: 6px; font-weight: 800; cursor: pointer; color: white; transition: 0.2s; text-transform: uppercase; }
+        .export-btn.csv { background: #10B981; } .export-btn.csv:hover { background: #059669; }
+        .export-btn.pdf { background: #EF4444; } .export-btn.pdf:hover { background: #DC2626; }
+        
+        /* PERFECT CHECKBOX ALIGNMENT */
+        .machine-checkbox-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 12px; margin-top: 10px; align-items: center; }
+        .hist-checkbox-wrapper { display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 700; color: #475569; cursor: pointer; }
+        .hist-checkbox-wrapper input { width: 16px; height: 16px; accent-color: #008FD5; cursor: pointer; margin: 0; }
+
+        .master-chart-container { background: white; padding: 20px; border-radius: 12px; height: 500px; border: 1px solid #E2E8F0; position: relative; box-shadow: 0 4px 15px rgba(0,0,0,0.03); }
     </style>
 </head>
 <body>
@@ -108,7 +115,7 @@
         </div>
         <div class="header-right">
             <div class="header-info-block"><span class="info-label">SYSTEM TIME</span><span class="info-value" id="live-clock">--:--:--</span></div>
-            <div style="width: 1px; height: 30px; background: #E2E8F0; margin: 0 10px;"></div>
+            <div style="width: 2px; height: 30px; background: #E2E8F0; margin: 0 10px;"></div>
             <div class="header-info-block"><span class="info-label">UPTIME</span><span class="info-value" id="uptime-counter">00:00:00</span></div>
             <a href="/logout" class="logout-btn">DISCONNECT</a>
         </div>
@@ -128,7 +135,7 @@
             </div>
 
             <div id="view-live" class="view-section active">
-                <div class="grid-container" id="machine-grid">
+                <div id="machine-grid">
                     </div>
             </div>
 
@@ -164,9 +171,10 @@
                             <button class="export-btn pdf" onclick="downloadPDF()">📄 PDF Report</button>
                         </div>
                     </div>
+                    
                     <div class="control-group" style="grid-column: 1 / -1;">
                         <label>COMPARE MACHINES</label>
-                        <div id="hist-machine-selectors" style="display: flex; gap: 15px; flex-wrap: wrap;"></div>
+                        <div id="hist-machine-selectors" class="machine-checkbox-grid"></div>
                     </div>
                 </div>
                 <div class="master-chart-container" id="chart-export-area">
@@ -193,6 +201,6 @@
         const CURRENT_SECTION = "{{ section_id }}";
         function toggleSidebar() { document.getElementById('sidebar').classList.toggle('closed'); }
     </script>
-    <script src="/static/js/scada_engine.js?v=9"></script>
+    <script src="/static/js/scada_engine.js?v=11"></script>
 </body>
 </html>
