@@ -363,3 +363,22 @@ function downloadCSV() {
     window.location.href = url; 
 }
 function downloadPDF() { html2pdf().set({ margin: 0.2, filename: `${CURRENT_SECTION}_Report.pdf`, jsPDF: { format: 'a3', orientation: 'landscape' } }).from(document.getElementById('chart-export-area')).save(); }
+
+// --- MONTHLY METRICS FETCHER ---
+async function fetchMonthlyStats() {
+    try {
+        const res = await fetch(`/api/monthly_stats/${CURRENT_SECTION}`);
+        const stats = await res.json();
+        for (const [id, data] of Object.entries(stats)) {
+            if (document.getElementById(`past-mwh-${id}`)) {
+                document.getElementById(`past-mwh-${id}`).textContent = data.past_month_energy;
+                document.getElementById(`curr-mwh-${id}`).textContent = data.current_month_energy;
+                document.getElementById(`curr-avg-kw-${id}`).textContent = data.current_month_avg_kw;
+            }
+        }
+    } catch(e) {}
+}
+
+// Call once on load, then every 5 minutes (300,000 ms)
+setTimeout(fetchMonthlyStats, 1500); 
+setInterval(fetchMonthlyStats, 300000);
