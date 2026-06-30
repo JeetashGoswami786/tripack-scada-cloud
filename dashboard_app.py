@@ -269,5 +269,68 @@ async def export_csv(section_id: str, timeframe: str = "24h", start: str = None,
         return StreamingResponse(output, media_type="text/csv", headers=headers)
     except Exception as e: return {"error": str(e)}
 
+@app.get("/api/monthly_stats/{section_id}")
+async def get_monthly_stats(section_id: str):
+    if not DATABASE_URL: return {}
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor(cursor_factory=RealDictCursor)
+        
+        # 1. Fetch Current Month (From 1st of the month to NOW)
+        cur.execute("""
+            SELECT machine_id, 
+                   MAX(kwh) as max_kwh, MIN(kwh) as min_kwh,
+                   AVG(kw) AS current_avg_kw
+            FROM scada_history 
+            WHERE section_id = %s AND timestamp >= DATE_TRUNC('month', CURRENT_DATE)
+            GROUP BY machine_id
+        """, (section_id,))
+        curr_data = cur.fetchall()
+        
+        # 2. Fetch Past Month (From 1st of last month to 1st of current month)
+        cur.execute("""
+            SELECT machine_id, 
+                   MAX(kwh) as max_kwh, MIN(kwh) as min_kwh
+            FROM scada_history 
+            WHERE section_id = %s 
+              AND timestamp >= DATE_TRUNC('month', CURRENT_DATE - INTERVAL '1 month')
+              AND timestamp < DATE_TRUNC('month', CURRENT_DATE)
+            GROUP BY machine_id
+        """, (section_id,))
+        past_data = cur.fetchall()
+        
+        cur.close()
+        conn.close()
+        
+        # Bulletproof Energy Calculation (Handles both Wh and kWh database artifacts)
+        def safe_energy(max_val, min_val):
+            if max_val is None or min_val is None: return 0.0
+            v_max = max_val / 1000 if max_val > 100000000 else max_val
+            v_min = min_val / 1000 if min_val > 100000000 else min_val
+            return max(0, v_max - v_min) / 1000  # Convert to MWh
+            
+        stats = {}
+        for row in curr_data:
+            m_id = str(row['machine_id'])
+            stats[m_id] = {
+                "current_month_energy": round(safe_energy(row['max_kwh'], row['min_kwh']), 2),
+                "current_month_avg_kw": round(row['current_avg_kw'] or 0, 2),
+                "past_month_energy": 0.0
+            }
+        for row in past_data:
+            m_id = str(row['machine_id'])
+            if m_id in stats:
+                stats[m_id]["past_month_energy"] = round(safe_energy(row['max_kwh'], row['min_kwh']), 2)
+            else:
+                stats[m_id] = {
+                    "current_month_energy": 0.0, 
+                    "current_month_avg_kw": 0.0, 
+                    "past_month_energy": round(safe_energy(row['max_kwh'], row['min_kwh']), 2)
+                }
+        return stats
+    except Exception as e:
+        print(f"Stats Error: {e}")
+        return {}
+
 if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=8000)
