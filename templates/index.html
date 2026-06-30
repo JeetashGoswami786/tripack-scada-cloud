@@ -167,6 +167,13 @@
                         </div>
                     </div>
                     <div class="control-group">
+                        <label>VIEW MODE</label>
+                        <div style="display: flex; background: #F1F5F9; border-radius: 6px; padding: 4px; border: 1px solid #E2E8F0; width: 250px;">
+                            <button id="btn-view-chart" onclick="setDisplayMode('chart')" style="flex: 1; padding: 8px 15px; border: none; background: #FFFFFF; font-family: 'Inter'; font-weight: 800; font-size: 12px; color: #008FD5; cursor: pointer; border-radius: 4px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); text-transform: uppercase;">Graph</button>
+                            <button id="btn-view-table" onclick="setDisplayMode('table')" style="flex: 1; padding: 8px 15px; border: none; background: transparent; font-family: 'Inter'; font-weight: 800; font-size: 12px; color: #64748B; cursor: pointer; border-radius: 4px; text-transform: uppercase;">Table</button>
+                        </div>
+                    </div>
+                    <div class="control-group">
                         <label>REPORTING</label>
                         <div style="display: flex; gap: 10px;">
                             <button class="export-btn csv" onclick="downloadCSV()">⬇ Excel / CSV</button>
@@ -180,7 +187,25 @@
                     </div>
                 </div>
                 <div class="master-chart-container" id="chart-export-area">
-                    <canvas id="master-history-chart"></canvas>
+                    <div class="loading-history" id="hist-loader" style="display: none; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); color: #10B981; font-weight: 800; text-transform: uppercase; letter-spacing: 2px;">Fetching Encrypted Data...</div>
+                    
+                    <div id="display-chart" style="height: 100%;">
+                        <canvas id="master-history-chart"></canvas>
+                    </div>
+                    
+                    <div id="display-table" style="display: none; height: 100%; overflow-y: auto;">
+                        <table style="width: 100%; border-collapse: collapse; text-align: left;">
+                            <thead style="background: #F8FAFC; position: sticky; top: 0; z-index: 5;">
+                                <tr>
+                                    <th style="padding: 15px; font-weight: 800; color: #64748B; border-bottom: 2px solid #E2E8F0;">Date & Time</th>
+                                    <th style="padding: 15px; font-weight: 800; color: #64748B; border-bottom: 2px solid #E2E8F0;">Machine Name</th>
+                                    <th style="padding: 15px; font-weight: 800; color: #64748B; border-bottom: 2px solid #E2E8F0;" id="table-param-header">Value</th>
+                                </tr>
+                            </thead>
+                            <tbody id="history-table-body">
+                                </tbody>
+                        </table>
+                    </div>
                 </div>
             </div>
 
