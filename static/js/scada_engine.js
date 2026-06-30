@@ -29,6 +29,31 @@ function tickClock() {
 }
 setInterval(tickClock, 1000);
 
+function setDisplayMode(mode) {
+    currentDisplayMode = mode;
+    
+    // Update button styles
+    const btnChart = document.getElementById('btn-view-chart');
+    const btnTable = document.getElementById('btn-view-table');
+    
+    if (mode === 'chart') {
+        btnChart.style.background = '#FFFFFF'; btnChart.style.color = '#008FD5'; btnChart.style.boxShadow = '0 2px 5px rgba(0,0,0,0.05)';
+        btnTable.style.background = 'transparent'; btnTable.style.color = '#64748B'; btnTable.style.boxShadow = 'none';
+        document.getElementById('display-chart').style.display = 'block';
+        document.getElementById('display-table').style.display = 'none';
+    } else {
+        btnTable.style.background = '#FFFFFF'; btnTable.style.color = '#008FD5'; btnTable.style.boxShadow = '0 2px 5px rgba(0,0,0,0.05)';
+        btnChart.style.background = 'transparent'; btnChart.style.color = '#64748B'; btnChart.style.boxShadow = 'none';
+        document.getElementById('display-chart').style.display = 'none';
+        document.getElementById('display-table').style.display = 'block';
+    }
+    
+    // Re-render the data in the new mode
+    if (Object.keys(rawHistoryData).length > 0) {
+        renderHistoryChart(); 
+    }
+}
+
 function animateValue(el, from, to, ms, dp = 1) {
     if (!el) return;
     if (isNaN(from) || isNaN(to)) { el.textContent = isNaN(to) ? '---' : to.toFixed(dp); return; }
@@ -294,38 +319,81 @@ function renderHistoryChart() {
     const datasets = [];
     const colors = ['#008FD5', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6', '#3B82F6', '#14B8A6'];
     
+    // 1. Process data for all selected checkboxes
     selectedIds.forEach((id, i) => {
+        // FAILSAFE: Skip if machine has no data
         if (!rawHistoryData[id] || rawHistoryData[id].length === 0) return;
+        
         const name = masterMachineList.find(m => m.id == id)?.name || `Unit ${id}`;
         
         const dataPoints = rawHistoryData[id].map(e => {
             let yVal = e[param];
-            // Fixes the kWh math dynamically
+            // Fixes the kWh/CO2 math dynamically
             if (param === 'kwh' || param === 'co2') {
                 let rawKwh = parseFloat(e.kwh || 0);
                 if (rawKwh > 100000000) rawKwh = rawKwh / 1000; 
                 let mwh = rawKwh / 1000;
                 yVal = param === 'kwh' ? mwh : (mwh * 0.45);
             }
-            return { x: new Date(e.ts), y: yVal };
+            return { x: new Date(e.ts), y: yVal !== undefined ? yVal : 0 };
         });
 
         datasets.push({
             label: name,
             data: dataPoints,
-            borderColor: colors[i % colors.length], borderWidth: 2, pointRadius: 0, tension: 0.2
+            borderColor: colors[i % colors.length], 
+            borderWidth: 2, 
+            pointRadius: 0, 
+            tension: 0.2
         });
     });
 
-    if (masterHistoryChart) masterHistoryChart.destroy();
-    masterHistoryChart = new Chart(ctx, {
-        type: 'line', data: { datasets },
-        options: { 
-            responsive: true, maintainAspectRatio: false, 
-            scales: { x: { type: 'time', grid:{display:false} } },
-            plugins: { legend: { position: 'top' } }
+    // 2. Decide whether to draw Chart or Table based on the UI Toggle
+    const paramName = document.getElementById('hist-param').options[document.getElementById('hist-param').selectedIndex].text;
+    
+    if (currentDisplayMode === 'chart') {
+        // --- DRAW GRAPH ---
+        if (masterHistoryChart) masterHistoryChart.destroy();
+        
+        // Only render if datasets exist to prevent blank canvas errors
+        if (datasets.length > 0) {
+            masterHistoryChart = new Chart(ctx, {
+                type: 'line', data: { datasets },
+                options: { 
+                    responsive: true, maintainAspectRatio: false, 
+                    scales: { x: { type: 'time', grid:{display:false} } },
+                    plugins: { legend: { position: 'top' } }
+                }
+            });
         }
-    });
+    } else {
+        // --- DRAW TABLE ---
+        document.getElementById('table-param-header').textContent = paramName;
+        let tableHTML = '';
+        
+        // Combine all selected datasets into one flat array so we can sort them
+        let flatData = [];
+        datasets.forEach(ds => {
+            ds.data.forEach(point => {
+                flatData.push({ time: point.x, name: ds.label, value: point.y });
+            });
+        });
+
+        // Sort by newest timestamp first
+        flatData.sort((a, b) => b.time - a.time);
+
+        // Build HTML Rows
+        flatData.forEach(row => {
+            tableHTML += `
+                <tr style="transition: 0.2s; border-bottom: 1px solid #E2E8F0;">
+                    <td style="padding: 12px 15px; font-family: 'JetBrains Mono'; font-weight: 600; font-size: 14px; color: #0F172A;">${row.time.toLocaleString()}</td>
+                    <td style="padding: 12px 15px; font-family: 'Inter'; font-weight: 800; font-size: 13px; color: #64748B;">${row.name}</td>
+                    <td style="padding: 12px 15px; font-family: 'JetBrains Mono'; font-weight: 800; font-size: 15px; color: #008FD5;">${parseFloat(row.value).toFixed(2)}</td>
+                </tr>`;
+        });
+        
+        document.getElementById('history-table-body').innerHTML = tableHTML;
+    }
 }
 
 function renderHeatmap() {
