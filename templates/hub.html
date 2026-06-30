@@ -3,119 +3,106 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>TriPack Master SCADA</title>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700;900&family=JetBrains+Mono:wght@700&display=swap" rel="stylesheet">
+    <title>Tri-Pack Master SCADA Hub</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800;900&display=swap" rel="stylesheet">
     <style>
-        * { box-sizing: border-box; margin: 0; padding: 0; }
-        body { 
-            background-color: #EEF1F5;
-            background-image: radial-gradient(#D1D5DB 1px, transparent 1px);
-            background-size: 20px 20px;
-            font-family: 'Inter', sans-serif; 
-            color: #1E293B; 
-            min-height: 100vh;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-        }
+        body { background: #EEF1F5; font-family: 'Inter', sans-serif; margin: 0; display: flex; flex-direction: column; align-items: center; min-height: 100vh; color: #1E293B; }
+        .header { margin-top: 50px; text-align: center; }
+        .header img { height: 70px; margin-bottom: 20px; }
+        .header h1 { font-size: 32px; font-weight: 900; margin: 0; color: #0F172A; text-transform: uppercase; letter-spacing: 1px; }
+        .header p { color: #64748B; font-weight: 600; margin-top: 8px; }
         
-        .hero { text-align: center; padding: 60px 20px 40px; }
-        .logo { height: 70px; margin-bottom: 20px; filter: drop-shadow(0 4px 6px rgba(0,0,0,0.1)); }
-        .hero h1 { font-size: 38px; font-weight: 900; color: #0F172A; letter-spacing: -0.5px; margin-bottom: 10px; }
-        .hero p { font-family: 'JetBrains Mono', monospace; font-size: 13px; color: #008FD5; letter-spacing: 3px; text-transform: uppercase; font-weight: 700; }
+        .hub-container { display: grid; grid-template-columns: repeat(3, 1fr); gap: 30px; margin-top: 50px; max-width: 1000px; width: 100%; padding: 0 20px; }
+        
+        .portal-card { background: white; border-radius: 16px; padding: 40px 30px; text-align: center; border: 1px solid #E2E8F0; box-shadow: 0 10px 25px rgba(0,0,0,0.03); transition: 0.3s; cursor: pointer; position: relative; overflow: hidden; }
+        .portal-card:hover { transform: translateY(-5px); box-shadow: 0 20px 40px rgba(0,143,213,0.1); border-color: #008FD5; }
+        .portal-card::before { content: ''; position: absolute; top: 0; left: 0; width: 100%; height: 6px; background: #008FD5; transition: 0.3s; }
+        .portal-card:hover::before { background: #10B981; }
+        
+        .card-icon { font-size: 40px; margin-bottom: 20px; }
+        .card-title { font-size: 22px; font-weight: 900; color: #0F172A; margin-bottom: 10px; }
+        .card-desc { font-size: 13px; color: #64748B; font-weight: 600; line-height: 1.5; }
 
-        .grid-container { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 25px; padding: 0 40px 60px; max-width: 1200px; width: 100%; }
+        /* Login Modal & Dropdown */
+        .auth-zone { margin-top: 25px; display: none; }
+        .auth-zone.active { display: block; animation: slideDown 0.3s ease; }
+        @keyframes slideDown { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
         
-        .card { 
-            background: #FFFFFF; 
-            border: 1px solid #E2E8F0;
-            border-top: 5px solid #008FD5;
-            border-radius: 12px; 
-            padding: 40px 30px; 
-            text-align: center; 
-            cursor: pointer; 
-            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-            box-shadow: 0 4px 15px rgba(0,0,0,0.03);
-        }
-        .card:hover { transform: translateY(-8px); box-shadow: 0 20px 40px rgba(0, 143, 213, 0.15); border-color: #CBD5E1; }
-        
-        .card h2 { font-size: 22px; font-weight: 800; color: #1E293B; margin-bottom: 20px; }
-        .status-badge { display: inline-flex; align-items: center; gap: 8px; padding: 6px 16px; background: #F0F9FF; border: 1px solid #BAE6FD; color: #0284C7; border-radius: 30px; font-size: 12px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; }
-        .status-badge::before { content: ''; width: 8px; height: 8px; background: #0EA5E9; border-radius: 50%; box-shadow: 0 0 8px #38BDF8; }
+        input[type="password"] { width: 100%; padding: 12px; border: 2px solid #E2E8F0; border-radius: 8px; font-family: 'Inter'; font-weight: 600; text-align: center; outline: none; margin-bottom: 10px; }
+        input[type="password"]:focus { border-color: #10B981; }
+        .btn-submit { background: #10B981; color: white; border: none; padding: 12px; width: 100%; border-radius: 8px; font-weight: 800; cursor: pointer; text-transform: uppercase; transition: 0.2s; }
+        .btn-submit:hover { background: #059669; }
 
-        /* Modal Styles */
-        .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(15, 23, 42, 0.6); backdrop-filter: blur(5px); display: flex; justify-content: center; align-items: center; opacity: 0; pointer-events: none; transition: 0.3s; z-index: 1000; }
-        .modal-overlay.active { opacity: 1; pointer-events: auto; }
-        
-        .modal-box { background: #FFFFFF; border: 1px solid #E2E8F0; padding: 40px; border-radius: 16px; width: 100%; max-width: 420px; text-align: center; transform: translateY(20px); transition: 0.3s; box-shadow: 0 25px 50px rgba(0,0,0,0.2); border-top: 5px solid #008FD5; }
-        .modal-overlay.active .modal-box { transform: translateY(0); }
-        
-        .modal-box h3 { color: #0F172A; font-size: 24px; margin-bottom: 5px; font-weight: 800; }
-        .modal-box p { color: #64748B; font-size: 13px; margin-bottom: 25px; font-weight: 500; }
-        
-        .modal-box input { width: 100%; background: #F8FAFC; border: 2px solid #E2E8F0; color: #1E293B; padding: 16px; border-radius: 8px; font-size: 18px; text-align: center; letter-spacing: 4px; outline: none; transition: 0.2s; font-family: 'JetBrains Mono', monospace; }
-        .modal-box input:focus { border-color: #008FD5; background: #FFFFFF; box-shadow: 0 0 0 4px rgba(0,143,213,0.1); }
-        
-        .modal-btn { width: 100%; background: #008FD5; color: white; border: none; padding: 16px; border-radius: 8px; font-size: 15px; font-weight: 800; cursor: pointer; margin-top: 20px; transition: 0.2s; text-transform: uppercase; letter-spacing: 1px; }
-        .modal-btn:hover { background: #0284C7; box-shadow: 0 8px 15px rgba(0,143,213,0.3); transform: translateY(-2px); }
-        
-        .close-btn { background: none; border: none; color: #94A3B8; margin-top: 20px; font-size: 14px; cursor: pointer; transition: 0.2s; font-weight: 600; }
-        .close-btn:hover { color: #EF4444; }
-
-        .error-banner { display: none; background: #FEF2F2; border-left: 4px solid #EF4444; color: #B91C1C; padding: 15px 20px; margin: 0 auto 30px; max-width: 600px; border-radius: 0 8px 8px 0; font-weight: 600; text-align: center; box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
+        /* Other Substations List */
+        .substation-list { display: flex; flex-direction: column; gap: 10px; margin-top: 20px; }
+        .sub-btn { background: #F8FAFC; border: 2px solid #E2E8F0; padding: 12px; border-radius: 8px; color: #0F172A; font-weight: 800; cursor: pointer; transition: 0.2s; text-align: center; display: block; text-decoration: none; }
+        .sub-btn:hover { background: #008FD5; color: white; border-color: #008FD5; }
     </style>
 </head>
 <body>
 
-    <div class="hero">
-        <img src="/static/img/logo.png" alt="Tri-Pack Logo" class="logo">
-        <h1>TriPack EnergyPC</h1>
-        <p>Master Plant-Wide SCADA Portal</p>
+    <div class="header">
+        <img src="/static/img/logo.png" alt="Tri-Pack Logo">
+        <h1>Master IIoT Gateway</h1>
+        <p>Select your operational zone to proceed.</p>
     </div>
 
-    <div id="error-banner" class="error-banner">
-        ⚠️ Authentication Failed: Incorrect Security Key provided.
-    </div>
-
-    <div class="grid-container">
-        {% for sec_id, sec_data in sections.items() %}
-        <div class="card" onclick="openLogin('{{ sec_id }}', '{{ sec_data.name }}')">
-            <h2>{{ sec_data.name }}</h2>
-            <div class="status-badge">Secure Node</div>
+    <div class="hub-container">
+        <div class="portal-card" onclick="toggleZone('zone-incoming')">
+            <div class="card-icon">⚡</div>
+            <div class="card-title">Main Incoming</div>
+            <div class="card-desc">Utility feeders and external grid synchronizations.</div>
+            
+            <div class="auth-zone" id="zone-incoming" onclick="event.stopPropagation()">
+                <form action="/login/individual_machines" method="post">
+                    <input type="password" name="password" placeholder="Enter Access Code" required>
+                    <button type="submit" class="btn-submit">Authenticate</button>
+                </form>
+            </div>
         </div>
-        {% endfor %}
-    </div>
 
-    <div class="modal-overlay" id="login-modal">
-        <div class="modal-box">
-            <h3 id="modal-title">Authentication</h3>
-            <p>Enter Master Protocol Key</p>
-            <form id="login-form" method="POST" action="">
-                <input type="password" name="password" placeholder="••••••••" required autocomplete="off">
-                <button type="submit" class="modal-btn">Establish Uplink</button>
-            </form>
-            <button class="close-btn" onclick="closeLogin()">Cancel Connection</button>
+        <div class="portal-card" onclick="window.location.href='/machine_hub'">
+            <div class="card-icon">⚙️</div>
+            <div class="card-title">Machine Directory</div>
+            <div class="card-desc">Individual extruders, slitters, and BOPP/CPP nodes.</div>
+        </div>
+
+        <div class="portal-card" onclick="toggleZone('zone-other')">
+            <div class="card-icon">🏭</div>
+            <div class="card-title">Other (Substations)</div>
+            <div class="card-desc">Line 4 and Line 5 internal distribution networks.</div>
+            
+            <div class="auth-zone" id="zone-other" onclick="event.stopPropagation()">
+                <div class="substation-list">
+                    <div class="sub-btn" onclick="openLogin('line4_lt1')">Line 4 - LT 01</div>
+                    <div class="sub-btn" onclick="openLogin('line4_lt2')">Line 4 - LT 02</div>
+                    <div class="sub-btn" onclick="openLogin('line5_sub1')">Line 5 - Sub 1</div>
+                    <div class="sub-btn" onclick="openLogin('line5_sub2')">Line 5 - Sub 2</div>
+                    <div class="sub-btn" onclick="openLogin('line5_sub3')">Line 5 - Sub 3</div>
+                </div>
+            </div>
         </div>
     </div>
+
+    <form id="hidden-login-form" method="post" style="display:none;">
+        <input type="password" name="password" id="hidden-password">
+    </form>
 
     <script>
-        function openLogin(sectionId, sectionName) {
-            document.getElementById('modal-title').textContent = sectionName;
-            document.getElementById('login-form').action = "/login/" + sectionId;
-            document.getElementById('login-modal').classList.add('active');
-            setTimeout(() => document.querySelector('input[name="password"]').focus(), 100);
+        function toggleZone(id) {
+            document.querySelectorAll('.auth-zone').forEach(el => {
+                if(el.id !== id) el.classList.remove('active');
+            });
+            document.getElementById(id).classList.toggle('active');
         }
 
-        function closeLogin() {
-            document.getElementById('login-modal').classList.remove('active');
-            document.querySelector('input[name="password"]').value = '';
-        }
-
-        window.onload = function() {
-            const urlParams = new URLSearchParams(window.location.search);
-            if (urlParams.get('error')) {
-                document.getElementById('error-banner').style.display = 'block';
-                window.history.replaceState(null, '', window.location.pathname); 
+        function openLogin(sectionId) {
+            const pwd = prompt("Enter Password for this Substation:");
+            if (pwd) {
+                const form = document.getElementById('hidden-login-form');
+                form.action = `/login/${sectionId}`;
+                document.getElementById('hidden-password').value = pwd;
+                form.submit();
             }
         }
     </script>
