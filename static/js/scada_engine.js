@@ -3,7 +3,7 @@
    ============================================================ */
 
 const machineCharts = {};
-const machineRadars = {};
+const machineCurrentBars = {};
 const prevValues = {};
 const MAX_PTS = 25;
 let startTime = new Date();
@@ -130,8 +130,8 @@ function getPanelHTML(m) {
             <div class="gauge-wrap">${makeGauge(m.id, 'pf', 'PWR FACTOR', 1.0)}</div>
             
             <div class="radar-column">
-                <span class="data-label" style="text-align:center; display:block;">Phase Radar (L1/L2/L3)</span>
-                <div class="radar-box"><canvas id="radar-${m.id}"></canvas></div>
+                <span class="data-label" style="text-align:center; display:block;">Live Current (L1/L2/L3)</span>
+                <div class="radar-box"><canvas id="current-bar-${m.id}"></canvas></div>
             </div>
 
             <div class="stats-column">
@@ -157,6 +157,22 @@ function getPanelHTML(m) {
     </div>`;
 }
 
+function initCurrentBar(id) {
+    const ctx = document.getElementById(`current-bar-${id}`).getContext('2d');
+    machineCurrentBars[id] = new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: ['L1', 'L2', 'L3'],
+            datasets: [{ data: [0,0,0], backgroundColor: ['#F87171', '#FBBF24', '#34D399'], borderRadius: 4 }]
+        },
+        options: { 
+            responsive: true, maintainAspectRatio: false, 
+            plugins: { legend: { display: false }, tooltip: { enabled: false } },
+            scales: { x: { display: true, ticks: {font: {size: 9}} }, y: { display: false, beginAtZero: true } }
+        }
+    });
+}
+
 function initMiniLineChart(id) {
     const ctx = document.getElementById(`chart-${id}`).getContext('2d');
     const grad = ctx.createLinearGradient(0, 0, 0, 70);
@@ -169,21 +185,66 @@ function initMiniLineChart(id) {
     });
 }
 
-function initRadar(id) {
-    const ctx = document.getElementById(`radar-${id}`).getContext('2d');
-    machineRadars[id] = new Chart(ctx, {
-        type: 'radar',
-        data: {
-            labels: ['L1', 'L2', 'L3'],
-            datasets: [
-                { data: [0,0,0], borderColor: '#FBBF24', backgroundColor: 'rgba(251,191,36,0.2)', borderWidth: 1.5 },
-                { data: [0,0,0], borderColor: '#F87171', backgroundColor: 'rgba(248,113,113,0.2)', borderWidth: 1.5 }
-            ]
-        },
-        options: { responsive: true, maintainAspectRatio: false, scales: { r: { ticks: { display: false } } }, plugins: { legend: { display: false }, tooltip: {enabled: false} } }
-    });
+function getPanelHTML(m) {
+    return `
+    <div class="machine-panel" id="panel-${m.id}">
+        <div class="panel-header">
+            <div class="panel-title-group">
+                <div class="status-led offline" id="led-${m.id}"></div>
+                <h2 class="machine-name">${m.name}</h2>
+            </div>
+            <span class="device-id">NODE ID: ${m.id}</span>
+        </div>
+        
+        <div class="panel-body-wide">
+            <div class="gauge-wrap">${makeGauge(m.id, 'v', 'VOLTAGE (V)', 300)}</div>
+            <div class="gauge-wrap">${makeGauge(m.id, 'i', 'CURRENT (A)', 3000)}</div>
+            <div class="gauge-wrap">${makeGauge(m.id, 'kw', 'POWER (kW)', 500)}</div>
+            <div class="gauge-wrap">${makeGauge(m.id, 'pf', 'PWR FACTOR', 1.0)}</div>
+            
+            <div class="radar-column">
+                <span class="data-label" style="text-align:center; display:block;">Live Current (L1/L2/L3)</span>
+                <div class="radar-box"><canvas id="current-bar-${m.id}"></canvas></div>
+            </div>
+
+            <div class="stats-column">
+                <div class="data-row"><span class="data-label">Total Energy</span><div><span class="data-value" style="color:#10B981;" id="kwh-${m.id}">---</span><span class="data-unit">MWh</span></div></div>
+                <div class="data-row"><span class="data-label">CO₂ Eq.</span><div><span class="data-value" style="color:#008FD5;" id="co2-${m.id}">---</span><span class="data-unit">Tons</span></div></div>
+                <div class="data-row" style="border:none;">
+                    <span class="data-label">THD-V</span>
+                    <div><span class="data-value" id="thdv-${m.id}">---</span><span class="data-unit">%</span></div>
+                </div>
+                <div style="text-align: right;"><span class="thd-badge" id="badge-thdv-${m.id}">NORMAL</span></div>
+            </div>
+        </div>
+        
+        <div style="display: flex; justify-content: space-around; background: #F8FAFC; padding: 12px; border-radius: 8px; margin: 15px 0; border: 1px solid #E2E8F0;">
+            <div style="text-align:center;"><span style="font-size:11px; color:#64748B; font-weight:800; text-transform:uppercase; display:block; margin-bottom:4px;">Past Month Energy</span> <span style="font-family:'JetBrains Mono'; font-size:16px; font-weight:800; color:#0F172A;" id="past-mwh-${m.id}">---</span> <span style="font-size:11px; color:#94A3B8; font-weight:700;">MWh</span></div>
+            <div style="width: 1px; background: #E2E8F0;"></div>
+            <div style="text-align:center;"><span style="font-size:11px; color:#64748B; font-weight:800; text-transform:uppercase; display:block; margin-bottom:4px;">Current Month Energy</span> <span style="font-family:'JetBrains Mono'; font-size:16px; font-weight:800; color:#10B981;" id="curr-mwh-${m.id}">---</span> <span style="font-size:11px; color:#94A3B8; font-weight:700;">MWh</span></div>
+            <div style="width: 1px; background: #E2E8F0;"></div>
+            <div style="text-align:center;"><span style="font-size:11px; color:#64748B; font-weight:800; text-transform:uppercase; display:block; margin-bottom:4px;">Current Month Avg Load</span> <span style="font-family:'JetBrains Mono'; font-size:16px; font-weight:800; color:#008FD5;" id="curr-avg-kw-${m.id}">---</span> <span style="font-size:11px; color:#94A3B8; font-weight:700;">kW</span></div>
+        </div>
+
+        <div class="chart-container"><canvas id="chart-${m.id}"></canvas></div>
+    </div>`;
 }
 
+function initCurrentBar(id) {
+    const ctx = document.getElementById(`current-bar-${id}`).getContext('2d');
+    machineCurrentBars[id] = new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: ['L1', 'L2', 'L3'],
+            datasets: [{ data: [0,0,0], backgroundColor: ['#F87171', '#FBBF24', '#34D399'], borderRadius: 4 }]
+        },
+        options: { 
+            responsive: true, maintainAspectRatio: false, 
+            plugins: { legend: { display: false }, tooltip: { enabled: false } },
+            scales: { x: { display: true, ticks: {font: {size: 9}} }, y: { display: false, beginAtZero: true } }
+        }
+    });
+}
 document.addEventListener('DOMContentLoaded', async () => {
     try {
         const response = await fetch(`/static/data/machines_${CURRENT_SECTION}.json`);
@@ -202,7 +263,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         document.getElementById('machine-list').innerHTML = listHTML;
         document.getElementById('hist-machine-selectors').innerHTML = selectorsHTML;
 
-        masterMachineList.forEach(m => { initMiniLineChart(m.id); initRadar(m.id); });
+        masterMachineList.forEach(m => { initMiniLineChart(m.id); initCurrentBar(m.id); });
         startPolling();
     } catch (err) { console.error("Initialization Failed:", err); }
 });
@@ -253,10 +314,9 @@ function startPolling() {
                     document.getElementById(`co2-${id}`).textContent = (mwh * 0.45).toFixed(1);
                 }
                 
-                if (machineRadars[id] && d.v_l1) {
-                    machineRadars[id].data.datasets[0].data = [d.v_l1, d.v_l2, d.v_l3];
-                    machineRadars[id].data.datasets[1].data = [d.i_l1, d.i_l2, d.i_l3];
-                    machineRadars[id].update('none');
+                if (machineCurrentBars[id] && d.i_l1 !== undefined) {
+                    machineCurrentBars[id].data.datasets[0].data = [d.i_l1, d.i_l2, d.i_l3];
+                    machineCurrentBars[id].update('none');
                 }
 
                 if (machineCharts[id]) {
