@@ -12,6 +12,7 @@ let masterHistoryChart = null;
 let rawHistoryData = {};
 let masterMachineList = [];
 let apexHeatmap = null;
+let currentDisplayMode = 'chart';
 
 function tickClock() {
     const now = new Date();
