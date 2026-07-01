@@ -76,6 +76,7 @@ INDIVIDUAL_MACHINES = {
     "m_sd11": {"name": "SD-11 (L4)", "password": "machine41"}
 }
 
+# Ensure isolated nodes have a memory slot in the backend!
 LIVE_DATA = {sec_id: {} for sec_id in SECTIONS.keys()}
 LIVE_DATA["individual_machines"] = {}
 DATABASE_URL = os.environ.get("DATABASE_URL")
@@ -111,11 +112,10 @@ def init_server():
         conn.commit()
         cur.close()
         conn.close()
-        print("✅ Database Upgraded & Verified!")
     except Exception as e: print(f"DB Error: {e}")
 
 # ==========================================
-# --- CLEAN ROUTING ENGINE ---
+# --- SECURE ROUTING ---
 # ==========================================
 
 @app.get("/")
@@ -144,23 +144,19 @@ async def serve_dashboard(request: Request, section_id: str):
         return RedirectResponse(url="/", status_code=status.HTTP_303_SEE_OTHER)
     return templates.TemplateResponse(request=request, name="index.html", context={"section_id": section_id, "section_name": SECTIONS[section_id]["name"]})
 
-# --- ROUTING FIXES ---
 @app.get("/incoming_hub")
 async def serve_incoming_hub(request: Request):
     return templates.TemplateResponse(
-        request=request, 
-        name="machine_hub.html", 
+        request=request, name="machine_hub.html", 
         context={"machines": MAIN_INCOMING, "hub_title": "Main Incoming Network", "hub_subtitle": "TIER 2 ENCRYPTED TELEMETRY"}
     )
 
 @app.get("/machine_hub")
 async def serve_machine_hub(request: Request):
     return templates.TemplateResponse(
-        request=request, 
-        name="machine_hub.html", 
+        request=request, name="machine_hub.html", 
         context={"machines": INDIVIDUAL_MACHINES, "hub_title": "Machine Directory", "hub_subtitle": "ISOLATED NODES & EXTRUDERS"}
     )
-
 
 @app.post("/login_machine/{machine_id}")
 async def login_machine(request: Request, machine_id: str, password: str = Form(...)):
@@ -174,7 +170,6 @@ async def login_machine(request: Request, machine_id: str, password: str = Form(
             request.session["machine_auth"] = m_auth_list
         return RedirectResponse(url=f"/isolated/{machine_id}", status_code=status.HTTP_303_SEE_OTHER)
     
-    # Smart Fallback
     fallback_url = "/incoming_hub?error=1" if is_incoming else "/machine_hub?error=1"
     return RedirectResponse(url=fallback_url, status_code=status.HTTP_303_SEE_OTHER)
 
@@ -197,6 +192,9 @@ async def serve_api_data(section_id: str):
 @app.post("/api/update_data/{section_id}")
 async def update_live_data(section_id: str, data: dict = Body(...)):
     global LIVE_DATA, last_db_write
+    # This explicit check allows edge_pusher to securely send the individual_machines data!
+    if section_id not in SECTIONS and section_id != "individual_machines": return {"status": "error"}
+    
     LIVE_DATA[section_id] = data
     current_time = time.time()
     
@@ -219,7 +217,7 @@ async def update_live_data(section_id: str, data: dict = Body(...)):
             cur.close()
             conn.close()
             last_db_write[section_id] = current_time
-        except Exception as e: print(f"Historian Write Error: {e}")
+        except Exception as e: pass
     return {"status": "success"}
 
 def get_sql_interval(timeframe):
@@ -372,9 +370,7 @@ async def get_monthly_stats(section_id: str):
                     "past_month_energy": round(safe_energy(row['max_kwh'], row['min_kwh']), 2)
                 }
         return stats
-    except Exception as e:
-        print(f"Stats Error: {e}")
-        return {}
+    except Exception as e: return {}
 
 if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=8000)
