@@ -200,20 +200,20 @@
         let masterHistoryChart = null;
         let currentDisplayMode = 'chart';
 
-        // --- NEW 3-PHASE BAR CHART ---
-        // --- NEW: INLINE PLUGIN TO DRAW EXACT VALUES ---
+        // --- BULLETPROOF VALUE PLUGIN ---
         const valuePlugin = {
             id: 'valuePlugin',
             afterDatasetsDraw(chart) {
                 const { ctx, data } = chart;
                 ctx.save();
                 chart.getDatasetMeta(0).data.forEach((datapoint, index) => {
-                    const value = data.datasets[0].data[index];
-                    if (value > 0) {
+                    let value = data.datasets[0].data[index];
+                    value = parseFloat(value);
+                    if (!isNaN(value) && value > 0) {
                         ctx.font = 'bold 14px JetBrains Mono';
                         ctx.fillStyle = '#0F172A';
                         ctx.textAlign = 'center';
-                        // Math.max prevents the text from floating off the top of the canvas!
+                        // Math.max prevents the text from floating off the top of the canvas
                         const yPos = Math.max(datapoint.y - 8, 15);
                         ctx.fillText(value.toFixed(1) + 'A', datapoint.x, yPos);
                     }
@@ -231,12 +231,13 @@
             },
             options: { 
                 responsive: true, maintainAspectRatio: false, 
-                layout: { padding: { top: 25 } }, // Adds space so text isn't cut off
+                layout: { padding: { top: 25 } }, 
                 plugins: { legend: { display: false } }, 
                 scales: { y: { beginAtZero: true, suggestedMax: 10 } } 
             },
-            plugins: [valuePlugin] // Activates the text drawing
+            plugins: [valuePlugin] // THIS DRAWS THE TEXT
         });
+
         function switchTab(tabName) {
             document.getElementById('tab-live').classList.toggle('active', tabName === 'live');
             document.getElementById('tab-history').classList.toggle('active', tabName === 'history');
@@ -245,16 +246,13 @@
             if (tabName === 'history' && Object.keys(rawHistoryData).length === 0) fetchHistoryData();
         }
 
-        // --- TABULAR DATA TOGGLE LOGIC ---
         function setDisplayMode(mode) {
             currentDisplayMode = mode;
             document.getElementById('btn-view-chart').classList.toggle('active', mode === 'chart');
             document.getElementById('btn-view-table').classList.toggle('active', mode === 'table');
-            
             document.getElementById('display-chart').style.display = mode === 'chart' ? 'block' : 'none';
             document.getElementById('display-table').style.display = mode === 'table' ? 'block' : 'none';
-            
-            processHistoryData(); // Re-render whichever is active
+            processHistoryData(); 
         }
 
         function updateVal(id, newVal) {
@@ -269,6 +267,7 @@
             }
         }
 
+        // --- SAFE DATA POLLER ---
         setInterval(async () => {
             try {
                 const res = await fetch(`/api/live_data/individual_machines`);
@@ -281,14 +280,15 @@
                     updateVal('val-kw', d.kw !== undefined ? d.kw : '---');
                     updateVal('val-pf', d.pf !== undefined ? d.pf : '---');
                     
+                    // SAFELY PARSE ENERGY (Ignores "---")
                     if (d.kwh_total !== undefined && d.kwh_total !== "---") {
                         updateVal('val-kwh', (parseFloat(d.kwh_total) / 1000).toFixed(3));
                     } else {
                         updateVal('val-kwh', '---');
                     }
                     
-                    // UPDATE THE NEW BAR CHART SAFELY
-                    if (d.i_l1 !== undefined) {
+                    // SAFELY PARSE CURRENT (Ignores "---")
+                    if (d.i_l1 !== undefined && d.i_l1 !== "---") {
                         const i1 = parseFloat(d.i_l1) || 0;
                         const i2 = parseFloat(d.i_l2) || 0;
                         const i3 = parseFloat(d.i_l3) || 0;
@@ -315,13 +315,11 @@
             } catch (err) { }
         }
 
-        // DECIDES WHETHER TO DRAW GRAPH OR TABLE
         function processHistoryData() {
             if (!rawHistoryData[MACHINE_ID] || rawHistoryData[MACHINE_ID].length === 0) return;
             const param = document.getElementById('hist-param').value;
             const paramName = document.getElementById('hist-param').options[document.getElementById('hist-param').selectedIndex].text;
             
-            // Format Data Array
             const dataPoints = rawHistoryData[MACHINE_ID].map(entry => {
                 let yVal = entry[param];
                 if (param === 'kwh' || param === 'co2') {
@@ -333,11 +331,8 @@
                 return { x: new Date(entry.ts), y: yVal !== undefined ? parseFloat(yVal).toFixed(2) : 0 };
             });
 
-            if (currentDisplayMode === 'chart') {
-                renderHistoryChart(dataPoints, paramName);
-            } else {
-                renderHistoryTable(dataPoints, paramName);
-            }
+            if (currentDisplayMode === 'chart') { renderHistoryChart(dataPoints, paramName); } 
+            else { renderHistoryTable(dataPoints, paramName); }
         }
 
         function renderHistoryChart(dataPoints, paramName) {
@@ -350,26 +345,16 @@
             });
         }
 
-        // GENERATES THE TABULAR DATA
         function renderHistoryTable(dataPoints, paramName) {
             let html = `<tr><th>Date & Timestamp</th><th>${paramName}</th></tr>`;
-            // Reverse array to show newest data at the top
-            dataPoints.slice().reverse().forEach(d => {
-                html += `<tr><td>${d.x.toLocaleString()}</td><td style="color:#008FD5;">${d.y}</td></tr>`;
-            });
+            dataPoints.slice().reverse().forEach(d => { html += `<tr><td>${d.x.toLocaleString()}</td><td style="color:#008FD5;">${d.y}</td></tr>`; });
             document.getElementById('history-table-body').innerHTML = html;
         }
 
-        function downloadIsolatedCSV() { window.location.href = `/api/export_csv/individual_machines?timeframe=${document.getElementById('hist-timeframe').value}`; }
-        function downloadPDF() { html2pdf().set({ margin: 0.2, filename: `${MACHINE_NAME}_Report.pdf`, jsPDF: { format: 'a3', orientation: 'landscape' } }).from(document.getElementById('chart-export-area')).save(); }
-
-        // --- MONTHLY METRICS FETCHER ---
         async function fetchMonthlyStats() {
             try {
-                // We use 'individual_machines' as the section ID for standalone nodes
                 const res = await fetch(`/api/monthly_stats/individual_machines`);
                 const stats = await res.json();
-                
                 if (stats[MACHINE_ID]) {
                     document.getElementById(`past-mwh`).textContent = stats[MACHINE_ID].past_month_energy;
                     document.getElementById(`curr-mwh`).textContent = stats[MACHINE_ID].current_month_energy;
@@ -380,6 +365,10 @@
         
         setTimeout(fetchMonthlyStats, 1500); 
         setInterval(fetchMonthlyStats, 300000);
+
+        function downloadIsolatedCSV() { window.location.href = `/api/export_csv/individual_machines?timeframe=${document.getElementById('hist-timeframe').value}`; }
+        function downloadPDF() { html2pdf().set({ margin: 0.2, filename: `${MACHINE_NAME}_Report.pdf`, jsPDF: { format: 'a3', orientation: 'landscape' } }).from(document.getElementById('chart-export-area')).save(); }
     </script>
+    
 </body>
 </html>
