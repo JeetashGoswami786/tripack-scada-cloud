@@ -213,9 +213,8 @@
                         ctx.font = 'bold 14px JetBrains Mono';
                         ctx.fillStyle = '#0F172A';
                         ctx.textAlign = 'center';
-                        // Math.max prevents the text from floating off the top of the canvas
-                        const yPos = Math.max(datapoint.y - 8, 15);
-                        ctx.fillText(value.toFixed(1) + 'A', datapoint.x, yPos);
+                        ctx.textBaseline = 'bottom';
+                        ctx.fillText(value.toFixed(1) + 'A', datapoint.x, datapoint.y - 6);
                     }
                 });
                 ctx.restore();
@@ -232,10 +231,11 @@
             options: { 
                 responsive: true, maintainAspectRatio: false, 
                 layout: { padding: { top: 25 } }, 
+                clip: false, // MAGIC FIX FOR SINGLE MACHINES
                 plugins: { legend: { display: false } }, 
                 scales: { y: { beginAtZero: true, suggestedMax: 10 } } 
             },
-            plugins: [valuePlugin] // THIS DRAWS THE TEXT
+            plugins: [valuePlugin]
         });
 
         function switchTab(tabName) {
