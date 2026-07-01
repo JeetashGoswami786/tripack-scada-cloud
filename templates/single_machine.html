@@ -213,10 +213,7 @@
         let rawHistoryData = {};
         let masterHistoryChart = null;
         let currentDisplayMode = 'chart';
-        
 
-        const ctxBar = document.getElementById('currentBarChart').getContext('2d');
-        
         function switchTab(tabName) {
             document.getElementById('tab-live').classList.toggle('active', tabName === 'live');
             document.getElementById('tab-history').classList.toggle('active', tabName === 'history');
@@ -236,7 +233,7 @@
 
         function updateVal(id, newVal) {
             const el = document.getElementById(id);
-            if (el.textContent !== String(newVal)) {
+            if (el && el.textContent !== String(newVal)) {
                 el.textContent = newVal;
                 if (el.textContent !== "---") {
                     el.classList.remove('flash');
@@ -259,14 +256,12 @@
                     updateVal('val-kw', d.kw !== undefined ? d.kw : '---');
                     updateVal('val-pf', d.pf !== undefined ? d.pf : '---');
                     
-                    // SAFELY PARSE ENERGY (Ignores "---")
                     if (d.kwh_total !== undefined && d.kwh_total !== "---") {
                         updateVal('val-kwh', (parseFloat(d.kwh_total) / 1000).toFixed(3));
                     } else {
                         updateVal('val-kwh', '---');
                     }
                     
-                    // SAFELY UPDATE L1/L2/L3 BOXES (Ignores "---")
                     if (d.i_l1 !== undefined && d.i_l1 !== "---") {
                         updateVal('val-i1', parseFloat(d.i_l1).toFixed(1));
                         updateVal('val-i2', parseFloat(d.i_l2).toFixed(1));
