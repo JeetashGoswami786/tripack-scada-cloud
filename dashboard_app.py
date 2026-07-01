@@ -144,19 +144,23 @@ async def serve_dashboard(request: Request, section_id: str):
         return RedirectResponse(url="/", status_code=status.HTTP_303_SEE_OTHER)
     return templates.TemplateResponse(request=request, name="index.html", context={"section_id": section_id, "section_name": SECTIONS[section_id]["name"]})
 
+# --- ROUTING FIXES ---
 @app.get("/incoming_hub")
 async def serve_incoming_hub(request: Request):
     return templates.TemplateResponse(
-        "machine_hub.html", 
-        {"request": request, "machines": MAIN_INCOMING, "hub_title": "Main Incoming Network", "hub_subtitle": "TIER 2 ENCRYPTED TELEMETRY"}
+        request=request, 
+        name="machine_hub.html", 
+        context={"machines": MAIN_INCOMING, "hub_title": "Main Incoming Network", "hub_subtitle": "TIER 2 ENCRYPTED TELEMETRY"}
     )
 
 @app.get("/machine_hub")
 async def serve_machine_hub(request: Request):
     return templates.TemplateResponse(
-        "machine_hub.html", 
-        {"request": request, "machines": INDIVIDUAL_MACHINES, "hub_title": "Machine Directory", "hub_subtitle": "ISOLATED NODES & EXTRUDERS"}
+        request=request, 
+        name="machine_hub.html", 
+        context={"machines": INDIVIDUAL_MACHINES, "hub_title": "Machine Directory", "hub_subtitle": "ISOLATED NODES & EXTRUDERS"}
     )
+
 
 @app.post("/login_machine/{machine_id}")
 async def login_machine(request: Request, machine_id: str, password: str = Form(...)):
