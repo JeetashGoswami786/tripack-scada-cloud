@@ -182,6 +182,7 @@ function initCurrentBar(id) {
                         ctx.font = 'bold 10px JetBrains Mono';
                         ctx.fillStyle = '#64748B';
                         ctx.textAlign = 'center';
+                        // Math.max keeps the text from going off the top of the canvas
                         const yPos = Math.max(datapoint.y - 5, 12);
                         ctx.fillText(value.toFixed(0) + 'A', datapoint.x, yPos);
                     }
