@@ -30,8 +30,8 @@ SECTIONS = {
     "individual_machines": {"name": "Main Incoming", "password": "tripack123"},
 }
 
-# --- TIER 2: MAIN INCOMING (NEW NETWORK) ---
-INDIVIDUAL_MACHINES = {
+# --- TIER 2: ISOLATED DIRECTORIES ---
+MAIN_INCOMING = {
     "inc_ext_delta_l4": {"name": "INCOMING Ext Delta Line 4", "password": "machine1"},
     "inc_l4_feeder_1": {"name": "INCOMING L4 Feeder 1", "password": "machine2"},
     "inc_ext_star_l4": {"name": "INCOMING Ext Star Line 4", "password": "machine3"},
@@ -44,8 +44,69 @@ INDIVIDUAL_MACHINES = {
     "inc_qm3_lvp_05": {"name": "INCOMING QM3 LVP-05", "password": "machine10"},
     "inc_qm1_lvp_07": {"name": "INCOMING QM1 LVP-07", "password": "machine11"},
     "inc_qm3_lvp_06": {"name": "INCOMING QM3 LVP-06", "password": "machine12"},
-    "inc_pending_13": {"name": "INCOMING 13 (Pending)", "password": "machine13"}
+    "inc_l3_feeder_1": {"name": "INCOMING L3 Feeder 1", "password": "machine13"},
+    "inc_l3_feeder_2": {"name": "INCOMING L3 Feeder 2", "password": "machine14"},
+    "inc_cpp_met": {"name": "INCOMING CPP-1/CPP-2/CCP-MET", "password": "machine15"}
 }
+
+INDIVIDUAL_MACHINES = {
+    "m_ps5": {"name": "PS 5 (BOPP)", "password": "machine16"},
+    "m_ps7": {"name": "PS 7 (BOPP)", "password": "machine17"},
+    "m_k52": {"name": "K5 2 (BOPP)", "password": "machine18"},
+    "m_ss10": {"name": "SS-10", "password": "machine19"},
+    "m_k54": {"name": "K5 4 (BOPP)", "password": "machine20"},
+    "m_ss14": {"name": "SS-14", "password": "machine21"},
+    "m_erema3": {"name": "Erema 3", "password": "machine22"},
+    "m_erema4": {"name": "Erema 4", "password": "machine23"},
+    "m_ss04": {"name": "SS-04", "password": "machine24"},
+    "m_ss12": {"name": "SS-12", "password": "machine25"},
+    "m_ss13": {"name": "SS-13", "password": "machine26"},
+    "m_ss09": {"name": "SS-09", "password": "machine27"},
+    "m_ss11": {"name": "SS-11", "password": "machine28"},
+    "m_ss08": {"name": "SS-08", "password": "machine29"},
+    "m_cpp1": {"name": "CPP 1", "password": "machine30"},
+    "m_cpp2": {"name": "CPP 2", "password": "machine31"},
+    "m_k51": {"name": "K5 1 (CPP)", "password": "machine32"},
+    "m_ps4": {"name": "PS 4 (CPP)", "password": "machine33"},
+    "m_k53": {"name": "K5 3 (CPP)", "password": "machine34"},
+    "m_ps6": {"name": "PS 6 (CPP)", "password": "machine35"},
+    "m_sh11": {"name": "SH-11 (L4)", "password": "machine36"},
+    "m_sh31": {"name": "SH-31 (L4)", "password": "machine37"},
+    "m_sg31": {"name": "SG-31 (L4)", "password": "machine38"},
+    "m_se31": {"name": "SE-31 (L4)", "password": "machine39"},
+    "m_sr11": {"name": "SR-11 (L4)", "password": "machine40"},
+    "m_sd11": {"name": "SD-11 (L4)", "password": "machine41"}
+}
+
+# --- ROUTING FIXES ---
+# Open the directories freely without auth checks!
+@app.get("/incoming_hub")
+async def serve_incoming_hub(request: Request):
+    return templates.TemplateResponse(request=request, name="machine_hub.html", context={"machines": MAIN_INCOMING})
+
+@app.get("/machine_hub")
+async def serve_machine_hub(request: Request):
+    return templates.TemplateResponse(request=request, name="machine_hub.html", context={"machines": INDIVIDUAL_MACHINES})
+
+@app.post("/login_machine/{machine_id}")
+async def login_machine(request: Request, machine_id: str, password: str = Form(...)):
+    # Check both dictionaries for the machine
+    m = MAIN_INCOMING.get(machine_id) or INDIVIDUAL_MACHINES.get(machine_id)
+    if m and password.strip() == m["password"]:
+        m_auth_list = request.session.get("machine_auth", [])
+        if machine_id not in m_auth_list:
+            m_auth_list.append(machine_id)
+            request.session["machine_auth"] = m_auth_list
+        return RedirectResponse(url=f"/isolated/{machine_id}", status_code=status.HTTP_303_SEE_OTHER)
+    # If password fails, redirect them back to the hub they came from
+    return RedirectResponse(url="/machine_hub?error=1", status_code=status.HTTP_303_SEE_OTHER)
+
+@app.get("/isolated/{machine_id}")
+async def serve_isolated(request: Request, machine_id: str):
+    if machine_id not in request.session.get("machine_auth", []):
+        return RedirectResponse(url="/", status_code=status.HTTP_303_SEE_OTHER)
+    m = MAIN_INCOMING.get(machine_id) or INDIVIDUAL_MACHINES.get(machine_id)
+    return templates.TemplateResponse(request=request, name="single_machine.html", context={"machine_id": machine_id, "machine_name": m["name"]})
 
 LIVE_DATA = {sec_id: {} for sec_id in SECTIONS.keys()}
 DATABASE_URL = os.environ.get("DATABASE_URL")
