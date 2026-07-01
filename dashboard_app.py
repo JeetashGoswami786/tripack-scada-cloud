@@ -80,26 +80,37 @@ INDIVIDUAL_MACHINES = {
 
 # --- ROUTING FIXES ---
 # Open the directories freely without auth checks!
+# --- ROUTING FIXES ---
 @app.get("/incoming_hub")
 async def serve_incoming_hub(request: Request):
-    return templates.TemplateResponse(request=request, name="machine_hub.html", context={"machines": MAIN_INCOMING})
+    return templates.TemplateResponse(
+        "machine_hub.html", 
+        {"request": request, "machines": MAIN_INCOMING, "hub_title": "Main Incoming Network", "hub_subtitle": "TIER 2 ENCRYPTED TELEMETRY"}
+    )
 
 @app.get("/machine_hub")
 async def serve_machine_hub(request: Request):
-    return templates.TemplateResponse(request=request, name="machine_hub.html", context={"machines": INDIVIDUAL_MACHINES})
+    return templates.TemplateResponse(
+        "machine_hub.html", 
+        {"request": request, "machines": INDIVIDUAL_MACHINES, "hub_title": "Machine Directory", "hub_subtitle": "ISOLATED NODES & EXTRUDERS"}
+    )
 
 @app.post("/login_machine/{machine_id}")
 async def login_machine(request: Request, machine_id: str, password: str = Form(...)):
-    # Check both dictionaries for the machine
+    # Check if the machine belongs to Incoming or Directory to know where to send them if they fail
+    is_incoming = machine_id in MAIN_INCOMING
     m = MAIN_INCOMING.get(machine_id) or INDIVIDUAL_MACHINES.get(machine_id)
+    
     if m and password.strip() == m["password"]:
         m_auth_list = request.session.get("machine_auth", [])
         if machine_id not in m_auth_list:
             m_auth_list.append(machine_id)
             request.session["machine_auth"] = m_auth_list
         return RedirectResponse(url=f"/isolated/{machine_id}", status_code=status.HTTP_303_SEE_OTHER)
-    # If password fails, redirect them back to the hub they came from
-    return RedirectResponse(url="/machine_hub?error=1", status_code=status.HTTP_303_SEE_OTHER)
+    
+    # Smart Fallback: Send them back to the exact hub they came from!
+    fallback_url = "/incoming_hub?error=1" if is_incoming else "/machine_hub?error=1"
+    return RedirectResponse(url=fallback_url, status_code=status.HTTP_303_SEE_OTHER)
 
 @app.get("/isolated/{machine_id}")
 async def serve_isolated(request: Request, machine_id: str):
