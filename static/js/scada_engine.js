@@ -178,11 +178,12 @@ function initCurrentBar(id) {
                 ctx.save();
                 chart.getDatasetMeta(0).data.forEach((datapoint, index) => {
                     const value = data.datasets[0].data[index];
-                    if(value > 0) {
+                    if (value > 0) {
                         ctx.font = 'bold 10px JetBrains Mono';
                         ctx.fillStyle = '#64748B';
                         ctx.textAlign = 'center';
-                        ctx.fillText(value.toFixed(0) + 'A', datapoint.x, datapoint.y - 4);
+                        const yPos = Math.max(datapoint.y - 5, 12);
+                        ctx.fillText(value.toFixed(0) + 'A', datapoint.x, yPos);
                     }
                 });
                 ctx.restore();
@@ -333,7 +334,10 @@ function startPolling() {
                 }
                 
                 if (machineCurrentBars[id] && d.i_l1 !== undefined) {
-                    machineCurrentBars[id].data.datasets[0].data = [d.i_l1, d.i_l2, d.i_l3];
+                    const i1 = parseFloat(d.i_l1) || 0;
+                    const i2 = parseFloat(d.i_l2) || 0;
+                    const i3 = parseFloat(d.i_l3) || 0;
+                    machineCurrentBars[id].data.datasets[0].data = [i1, i2, i3];
                     machineCurrentBars[id].update('none');
                 }
 
