@@ -129,9 +129,20 @@ function getPanelHTML(m) {
             <div class="gauge-wrap">${makeGauge(m.id, 'kw', 'POWER (kW)', 500)}</div>
             <div class="gauge-wrap">${makeGauge(m.id, 'pf', 'PWR FACTOR', 1.0)}</div>
             
-            <div class="radar-column">
-                <span class="data-label" style="text-align:center; display:block;">Live Current (L1/L2/L3)</span>
-                <div class="radar-box"><canvas id="current-bar-${m.id}"></canvas></div>
+            <!-- NEW INTERACTIVE L1/L2/L3 LCD BOXES -->
+            <div class="radar-column" style="display: flex; gap: 10px; align-items: center; justify-content: center; height: 100%;">
+                <div style="flex: 1; text-align: center; background: #FEF2F2; border: 2px solid #FECACA; padding: 15px 5px; border-radius: 8px;">
+                    <div style="font-size: 10px; font-weight: 800; color: #EF4444; margin-bottom: 5px;">PHASE L1</div>
+                    <div style="font-family: 'JetBrains Mono'; font-size: 20px; font-weight: 900; color: #B91C1C;"><span id="val-i1-${m.id}">---</span><span style="font-size: 12px;">A</span></div>
+                </div>
+                <div style="flex: 1; text-align: center; background: #FFFBEB; border: 2px solid #FDE68A; padding: 15px 5px; border-radius: 8px;">
+                    <div style="font-size: 10px; font-weight: 800; color: #F59E0B; margin-bottom: 5px;">PHASE L2</div>
+                    <div style="font-family: 'JetBrains Mono'; font-size: 20px; font-weight: 900; color: #B45309;"><span id="val-i2-${m.id}">---</span><span style="font-size: 12px;">A</span></div>
+                </div>
+                <div style="flex: 1; text-align: center; background: #ECFDF5; border: 2px solid #A7F3D0; padding: 15px 5px; border-radius: 8px;">
+                    <div style="font-size: 10px; font-weight: 800; color: #10B981; margin-bottom: 5px;">PHASE L3</div>
+                    <div style="font-family: 'JetBrains Mono'; font-size: 20px; font-weight: 900; color: #047857;"><span id="val-i3-${m.id}">---</span><span style="font-size: 12px;">A</span></div>
+                </div>
             </div>
 
             <div class="stats-column">
@@ -157,42 +168,7 @@ function getPanelHTML(m) {
     </div>`;
 }
 
-function initCurrentBar(id) {
-    const ctx = document.getElementById(`current-bar-${id}`).getContext('2d');
-    machineCurrentBars[id] = new Chart(ctx, {
-        type: 'bar',
-        data: {
-            labels: ['L1', 'L2', 'L3'],
-            datasets: [{ data: [0,0,0], backgroundColor: ['#F87171', '#FBBF24', '#34D399'], borderRadius: 4 }]
-        },
-        options: { 
-            responsive: true, maintainAspectRatio: false, 
-            layout: { padding: { top: 20 } },
-            clip: false, // THIS IS THE MAGIC FIX: Prevents text from being cut off at the top!
-            plugins: { legend: { display: false }, tooltip: { enabled: false } },
-            scales: { x: { display: true, ticks: {font: {size: 9}} }, y: { display: false, beginAtZero: true, suggestedMax: 10 } }
-        },
-        plugins: [{
-            id: 'valuePlugin',
-            afterDatasetsDraw(chart) {
-                const { ctx, data } = chart;
-                ctx.save();
-                chart.getDatasetMeta(0).data.forEach((datapoint, index) => {
-                    const value = data.datasets[0].data[index];
-                    if (value > 0) {
-                        ctx.font = 'bold 11px JetBrains Mono';
-                        ctx.fillStyle = '#475569';
-                        ctx.textAlign = 'center';
-                        ctx.textBaseline = 'bottom';
-                        // Draws the text exactly 4 pixels above the bar
-                        ctx.fillText(value.toFixed(1) + 'A', datapoint.x, datapoint.y - 4);
-                    }
-                });
-                ctx.restore();
-            }
-        }]
-    });
-}
+
 
 function initMiniLineChart(id) {
     const ctx = document.getElementById(`chart-${id}`).getContext('2d');
@@ -284,7 +260,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         document.getElementById('machine-list').innerHTML = listHTML;
         document.getElementById('hist-machine-selectors').innerHTML = selectorsHTML;
 
-        masterMachineList.forEach(m => { initMiniLineChart(m.id); initCurrentBar(m.id); });
+        masterMachineList.forEach(m => { initMiniLineChart(m.id); });
         startPolling();
     } catch (err) { console.error("Initialization Failed:", err); }
 });
@@ -335,12 +311,16 @@ function startPolling() {
                     document.getElementById(`co2-${id}`).textContent = (mwh * 0.45).toFixed(1);
                 }
                 
-                if (machineCurrentBars[id] && d.i_l1 !== undefined) {
-                    const i1 = parseFloat(d.i_l1) || 0;
-                    const i2 = parseFloat(d.i_l2) || 0;
-                    const i3 = parseFloat(d.i_l3) || 0;
-                    machineCurrentBars[id].data.datasets[0].data = [i1, i2, i3];
-                    machineCurrentBars[id].update('none');
+                // Update L1/L2/L3 LCD Readouts safely
+                if (d.i_l1 !== undefined && d.i_l1 !== "---") {
+                    animateValue(document.getElementById(`val-i1-${id}`), prevValues[id]?.i1 || 0, parseFloat(d.i_l1), 500, 1);
+                    animateValue(document.getElementById(`val-i2-${id}`), prevValues[id]?.i2 || 0, parseFloat(d.i_l2), 500, 1);
+                    animateValue(document.getElementById(`val-i3-${id}`), prevValues[id]?.i3 || 0, parseFloat(d.i_l3), 500, 1);
+                    
+                    // Store for smooth animation next tick
+                    prevValues[id].i1 = parseFloat(d.i_l1);
+                    prevValues[id].i2 = parseFloat(d.i_l2);
+                    prevValues[id].i3 = parseFloat(d.i_l3);
                 }
 
                 if (machineCharts[id]) {
