@@ -2,111 +2,83 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Main Incoming Hub - SCADA</title>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700;900&family=JetBrains+Mono:wght@700&display=swap" rel="stylesheet">
+    <title>{{ hub_title }} - Tri-Pack</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800;900&display=swap" rel="stylesheet">
     <style>
-        * { box-sizing: border-box; margin: 0; padding: 0; }
-        body { background-color: #EEF1F5; background-image: radial-gradient(#D1D5DB 1px, transparent 1px); background-size: 20px 20px; font-family: 'Inter', sans-serif; color: #1E293B; min-height: 100vh; }
+        body { background: #EEF1F5; font-family: 'Inter', sans-serif; margin: 0; padding: 0; color: #1E293B; }
+        .header { background: #FFFFFF; padding: 20px 40px; display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #E2E8F0; box-shadow: 0 4px 15px rgba(0,0,0,0.02); }
+        .header-left { display: flex; align-items: center; gap: 20px; }
+        .logo-small { height: 45px; }
+        .title-block h1 { margin: 0; font-size: 24px; font-weight: 900; color: #0F172A; text-transform: uppercase; }
+        .title-block span { font-size: 11px; color: #10B981; font-weight: 800; letter-spacing: 2px; text-transform: uppercase; }
         
-        .top-bar { padding: 15px 40px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #E2E8F0; background: #FFFFFF; box-shadow: 0 2px 10px rgba(0,0,0,0.02); }
-        .logo-small { height: 40px; }
-        .back-btn { color: #0F172A; text-decoration: none; font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; display: flex; align-items: center; gap: 8px; transition: 0.2s; padding: 8px 16px; border: 2px solid #E2E8F0; border-radius: 6px; }
-        .back-btn:hover { background: #F8FAFC; border-color: #CBD5E1; }
+        .back-btn { color: #475569; text-decoration: none; border: 2px solid #E2E8F0; padding: 8px 16px; border-radius: 6px; font-size: 12px; font-weight: 700; transition: 0.2s; text-transform: uppercase; background: #F8FAFC; }
+        .back-btn:hover { background: #E2E8F0; color: #0F172A; }
 
-        .hero { text-align: center; padding: 40px 20px; }
-        .hero h1 { font-size: 36px; font-weight: 900; color: #0F172A; letter-spacing: -0.5px; margin-bottom: 10px; }
-        .hero p { font-family: 'JetBrains Mono', monospace; font-size: 13px; color: #10B981; letter-spacing: 4px; text-transform: uppercase; font-weight: 700; }
+        .main-content { padding: 40px; max-width: 1400px; margin: 0 auto; }
+        
+        /* THIS GRID FIXES THE ALIGNMENT ISSUES */
+        .machine-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 20px; align-items: stretch; }
+        
+        .machine-card { background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 12px; padding: 25px; text-align: center; box-shadow: 0 4px 10px rgba(0,0,0,0.02); transition: 0.3s; cursor: pointer; position: relative; overflow: hidden; display: flex; flex-direction: column; justify-content: center; }
+        .machine-card:hover { transform: translateY(-3px); box-shadow: 0 10px 25px rgba(0,143,213,0.1); border-color: #008FD5; }
+        .machine-card::before { content: ''; position: absolute; top: 0; left: 0; width: 100%; height: 4px; background: #008FD5; transition: 0.3s; }
+        .machine-card:hover::before { background: #10B981; }
+        
+        .machine-title { font-size: 16px; font-weight: 900; color: #0F172A; margin-bottom: 15px; }
+        .status-badge { background: #ECFDF5; color: #10B981; border: 1px solid #A7F3D0; padding: 6px 12px; border-radius: 4px; font-size: 11px; font-weight: 800; display: inline-block; letter-spacing: 1px; }
 
-        .grid-container { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 20px; padding: 0 40px 60px; max-width: 1400px; margin: 0 auto; }
+        .login-overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(255,255,255,0.95); display: flex; flex-direction: column; justify-content: center; align-items: center; padding: 20px; opacity: 0; pointer-events: none; transition: 0.3s; box-sizing: border-box; }
+        .machine-card.active .login-overlay { opacity: 1; pointer-events: auto; }
         
-        .card { background: #FFFFFF; border: 1px solid #E2E8F0; border-left: 5px solid #CBD5E1; border-radius: 8px; padding: 30px 20px; display: flex; flex-direction: column; align-items: center; cursor: pointer; transition: all 0.2s ease-out; box-shadow: 0 4px 10px rgba(0,0,0,0.02); }
-        .card:hover { transform: scale(1.02); border-left-color: #10B981; box-shadow: 0 15px 30px rgba(16, 185, 129, 0.15); }
-        
-        .card h2 { font-size: 15px; font-weight: 800; color: #1E293B; margin-bottom: 15px; text-align: center; }
-        .status-badge { display: inline-flex; align-items: center; gap: 6px; padding: 5px 14px; background: #ECFDF5; border: 1px solid #A7F3D0; color: #059669; border-radius: 6px; font-size: 11px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; }
-        .status-badge::before { content: '🔒'; font-size: 10px; }
-
-        /* Modal Styles */
-        .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(15, 23, 42, 0.6); backdrop-filter: blur(5px); display: flex; justify-content: center; align-items: center; opacity: 0; pointer-events: none; transition: 0.3s; z-index: 1000; }
-        .modal-overlay.active { opacity: 1; pointer-events: auto; }
-        
-        .modal-box { background: #FFFFFF; border: 1px solid #E2E8F0; padding: 40px; border-radius: 16px; width: 100%; max-width: 400px; text-align: center; transform: scale(0.95); transition: 0.3s; border-top: 5px solid #10B981; box-shadow: 0 25px 50px rgba(0,0,0,0.2); }
-        .modal-overlay.active .modal-box { transform: scale(1); }
-        
-        .modal-box h3 { color: #0F172A; font-size: 22px; font-weight: 800; margin-bottom: 5px; }
-        .modal-box p { color: #10B981; font-size: 12px; font-weight: 700; font-family: 'JetBrains Mono', monospace; margin-bottom: 25px; letter-spacing: 1px; }
-        
-        .modal-box input { width: 100%; background: #F8FAFC; border: 2px solid #E2E8F0; color: #1E293B; padding: 14px; border-radius: 6px; font-size: 18px; text-align: center; letter-spacing: 4px; outline: none; transition: 0.2s; font-family: 'JetBrains Mono', monospace; }
-        .modal-box input:focus { border-color: #10B981; background: #FFFFFF; box-shadow: 0 0 0 4px rgba(16, 185, 129, 0.1); }
-        
-        .modal-btn { width: 100%; background: #10B981; color: #FFFFFF; border: none; padding: 14px; border-radius: 6px; font-size: 14px; font-weight: 800; cursor: pointer; margin-top: 20px; transition: 0.2s; text-transform: uppercase; letter-spacing: 1px; }
-        .modal-btn:hover { background: #059669; box-shadow: 0 8px 15px rgba(16, 185, 129, 0.2); transform: translateY(-2px); }
-        
-        .error-banner { display: none; background: #FEF2F2; border-left: 4px solid #EF4444; color: #B91C1C; padding: 15px; margin: 0 auto 30px; max-width: 600px; border-radius: 0 8px 8px 0; font-weight: 600; text-align: center; font-size: 14px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
+        input[type="password"] { width: 100%; padding: 10px; border: 2px solid #E2E8F0; border-radius: 6px; font-family: 'Inter'; font-weight: 600; text-align: center; outline: none; margin-bottom: 10px; }
+        input[type="password"]:focus { border-color: #10B981; }
+        .btn-submit { background: #10B981; color: white; border: none; padding: 10px; width: 100%; border-radius: 6px; font-weight: 800; cursor: pointer; text-transform: uppercase; transition: 0.2s; }
+        .btn-submit:hover { background: #059669; }
+        .close-btn { position: absolute; top: 10px; right: 15px; font-size: 20px; font-weight: bold; color: #94A3B8; cursor: pointer; }
     </style>
 </head>
 <body>
-    
-    <div class="top-bar">
-        <img src="/static/img/logo.png" alt="Tri-Pack" class="logo-small">
-        <a href="/" class="back-btn">← Disconnect</a>
-    </div>
 
     <div class="header">
         <div class="header-left">
             <img src="/static/img/logo.png" alt="Tri-Pack" class="logo-small">
             <div class="title-block">
-                <!-- THESE TAGS MAKE THE TITLE DYNAMIC -->
                 <h1>{{ hub_title }}</h1>
                 <span>{{ hub_subtitle }}</span>
             </div>
         </div>
-        <a href="/" class="back-btn">← BACK TO MASTER HUB</a>
+        <a href="/" class="back-btn">← Back to Master Hub</a>
     </div>
 
-    <div id="error-banner" class="error-banner">
-        ⚠️ Node Access Denied: Incorrect Security Key.
-    </div>
-
-    <div class="grid-container">
-        {% for m_id, m_data in machines.items() %}
-        <div class="card" onclick="openLogin('{{ m_id }}', '{{ m_data.name }}')">
-            <h2>{{ m_data.name }}</h2>
-            <div class="status-badge">Locked Node</div>
-        </div>
-        {% endfor %}
-    </div>
-
-    <div class="modal-overlay" id="login-modal">
-        <div class="modal-box">
-            <h3 id="modal-title">Machine Auth</h3>
-            <p>LOCAL OVERRIDE REQUIRED</p>
-            <form id="login-form" method="POST" action="">
-                <input type="password" name="password" placeholder="••••••••" required autocomplete="off">
-                <button type="submit" class="modal-btn">Unlock Telemetry</button>
-            </form>
-            <button onclick="closeLogin()" style="background:none; border:none; margin-top:20px; color:#94A3B8; cursor:pointer; font-size: 13px; font-weight: 600;">Abort Protocol</button>
+    <div class="main-content">
+        <div class="machine-grid">
+            {% for m_id, m_data in machines.items() %}
+            <div class="machine-card" onclick="openLogin('{{ m_id }}')">
+                <div class="machine-title">{{ m_data.name }}</div>
+                <div><span class="status-badge">🔒 LOCKED NODE</span></div>
+                
+                <div class="login-overlay" id="login-{{ m_id }}" onclick="event.stopPropagation()">
+                    <span class="close-btn" onclick="closeLogin('{{ m_id }}')">&times;</span>
+                    <div style="font-size: 12px; font-weight: 800; color: #64748B; margin-bottom: 10px; text-transform: uppercase;">Authenticate</div>
+                    <form action="/login_machine/{{ m_id }}" method="post" style="width: 100%;">
+                        <input type="password" name="password" placeholder="Password" required>
+                        <button type="submit" class="btn-submit">Unlock</button>
+                    </form>
+                </div>
+            </div>
+            {% endfor %}
         </div>
     </div>
 
     <script>
-        function openLogin(machineId, machineName) {
-            document.getElementById('modal-title').textContent = machineName;
-            document.getElementById('login-form').action = "/login_machine/" + machineId;
-            document.getElementById('login-modal').classList.add('active');
-            setTimeout(() => document.querySelector('input[name="password"]').focus(), 100);
+        function openLogin(id) {
+            document.querySelectorAll('.machine-card').forEach(c => c.classList.remove('active'));
+            document.getElementById('panel-' + id)?.closest('.machine-card').classList.add('active');
+            document.getElementById('login-' + id).parentElement.classList.add('active');
         }
-        function closeLogin() {
-            document.getElementById('login-modal').classList.remove('active');
-            document.querySelector('input[name="password"]').value = '';
-        }
-        window.onload = function() {
-            const urlParams = new URLSearchParams(window.location.search);
-            if (urlParams.get('error')) {
-                document.getElementById('error-banner').style.display = 'block';
-                window.history.replaceState(null, '', window.location.pathname); 
-            }
+        function closeLogin(id) {
+            document.getElementById('login-' + id).parentElement.classList.remove('active');
         }
     </script>
 </body>
