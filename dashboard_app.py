@@ -11,7 +11,6 @@ from datetime import timedelta
 import uvicorn
 import io
 import csv
-
 from apscheduler.schedulers.background import BackgroundScheduler
 
 app = FastAPI(title="Tri-Pack Industrial Master SCADA")
@@ -27,7 +26,6 @@ SECTIONS = {
     "line5_sub1": {"name": "Line 5 - Substation 1", "password": "tripack123"},
     "line5_sub2": {"name": "Line 5 - Substation 2", "password": "tripack123"},
     "line5_sub3": {"name": "Line 5 - Substation 3", "password": "tripack123"},
-    "individual_machines": {"name": "Main Incoming", "password": "tripack123"},
 }
 
 # --- TIER 2: ISOLATED DIRECTORIES ---
@@ -78,56 +76,16 @@ INDIVIDUAL_MACHINES = {
     "m_sd11": {"name": "SD-11 (L4)", "password": "machine41"}
 }
 
-# --- ROUTING FIXES ---
-# Open the directories freely without auth checks!
-# --- ROUTING FIXES ---
-@app.get("/incoming_hub")
-async def serve_incoming_hub(request: Request):
-    return templates.TemplateResponse(
-        "machine_hub.html", 
-        {"request": request, "machines": MAIN_INCOMING, "hub_title": "Main Incoming Network", "hub_subtitle": "TIER 2 ENCRYPTED TELEMETRY"}
-    )
-
-@app.get("/machine_hub")
-async def serve_machine_hub(request: Request):
-    return templates.TemplateResponse(
-        "machine_hub.html", 
-        {"request": request, "machines": INDIVIDUAL_MACHINES, "hub_title": "Machine Directory", "hub_subtitle": "ISOLATED NODES & EXTRUDERS"}
-    )
-
-@app.post("/login_machine/{machine_id}")
-async def login_machine(request: Request, machine_id: str, password: str = Form(...)):
-    # Check if the machine belongs to Incoming or Directory to know where to send them if they fail
-    is_incoming = machine_id in MAIN_INCOMING
-    m = MAIN_INCOMING.get(machine_id) or INDIVIDUAL_MACHINES.get(machine_id)
-    
-    if m and password.strip() == m["password"]:
-        m_auth_list = request.session.get("machine_auth", [])
-        if machine_id not in m_auth_list:
-            m_auth_list.append(machine_id)
-            request.session["machine_auth"] = m_auth_list
-        return RedirectResponse(url=f"/isolated/{machine_id}", status_code=status.HTTP_303_SEE_OTHER)
-    
-    # Smart Fallback: Send them back to the exact hub they came from!
-    fallback_url = "/incoming_hub?error=1" if is_incoming else "/machine_hub?error=1"
-    return RedirectResponse(url=fallback_url, status_code=status.HTTP_303_SEE_OTHER)
-
-@app.get("/isolated/{machine_id}")
-async def serve_isolated(request: Request, machine_id: str):
-    if machine_id not in request.session.get("machine_auth", []):
-        return RedirectResponse(url="/", status_code=status.HTTP_303_SEE_OTHER)
-    m = MAIN_INCOMING.get(machine_id) or INDIVIDUAL_MACHINES.get(machine_id)
-    return templates.TemplateResponse(request=request, name="single_machine.html", context={"machine_id": machine_id, "machine_name": m["name"]})
-
 LIVE_DATA = {sec_id: {} for sec_id in SECTIONS.keys()}
+LIVE_DATA["individual_machines"] = {}
 DATABASE_URL = os.environ.get("DATABASE_URL")
 last_db_write = {sec: 0 for sec in SECTIONS.keys()}
+last_db_write["individual_machines"] = 0
 
 def get_db_connection():
     return psycopg2.connect(DATABASE_URL)
 
 def send_daily_report():
-    print("CRON: Generating automated daily management report...")
     pass
 
 @app.on_event("startup")
@@ -144,23 +102,21 @@ def init_server():
             CREATE TABLE IF NOT EXISTS scada_history (
                 id SERIAL PRIMARY KEY, timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 section_id VARCHAR(50), machine_id VARCHAR(50),
-                v_l1 REAL, i_l1 REAL, kw REAL, pf REAL, kwh REAL DEFAULT 0
+                v_l1 REAL, i_l1 REAL, kw REAL, pf REAL, kwh REAL DEFAULT 0,
+                v_l2 REAL DEFAULT 0, v_l3 REAL DEFAULT 0, i_l2 REAL DEFAULT 0, i_l3 REAL DEFAULT 0,
+                thd_v REAL DEFAULT 0, thd_i REAL DEFAULT 0
             )
         ''')
-        cur.execute("ALTER TABLE scada_history ADD COLUMN IF NOT EXISTS section_id VARCHAR(50) DEFAULT 'line5_sub3';")
-        cur.execute("ALTER TABLE scada_history ADD COLUMN IF NOT EXISTS kwh REAL DEFAULT 0;")
-        cur.execute("ALTER TABLE scada_history ADD COLUMN IF NOT EXISTS v_l2 REAL DEFAULT 0;")
-        cur.execute("ALTER TABLE scada_history ADD COLUMN IF NOT EXISTS v_l3 REAL DEFAULT 0;")
-        cur.execute("ALTER TABLE scada_history ADD COLUMN IF NOT EXISTS i_l2 REAL DEFAULT 0;")
-        cur.execute("ALTER TABLE scada_history ADD COLUMN IF NOT EXISTS i_l3 REAL DEFAULT 0;")
-        cur.execute("ALTER TABLE scada_history ADD COLUMN IF NOT EXISTS thd_v REAL DEFAULT 0;")
-        cur.execute("ALTER TABLE scada_history ADD COLUMN IF NOT EXISTS thd_i REAL DEFAULT 0;")
         cur.execute('CREATE INDEX IF NOT EXISTS idx_machine_time ON scada_history(machine_id, timestamp);')
         conn.commit()
         cur.close()
         conn.close()
-        print("✅ Database Upgraded for 3-Phase & THD Analytics!")
+        print("✅ Database Upgraded & Verified!")
     except Exception as e: print(f"DB Error: {e}")
+
+# ==========================================
+# --- CLEAN ROUTING ENGINE ---
+# ==========================================
 
 @app.get("/")
 async def serve_hub(request: Request):
@@ -169,13 +125,11 @@ async def serve_hub(request: Request):
 @app.post("/login/{section_id}")
 async def login_submit(request: Request, section_id: str, password: str = Form(...)):
     if section_id not in SECTIONS: return RedirectResponse(url="/", status_code=status.HTTP_303_SEE_OTHER)
-    sec = SECTIONS[section_id]
-    if password == sec["password"]:
+    if password == SECTIONS[section_id]["password"]:
         auth_list = request.session.get("authorized", [])
         if section_id not in auth_list:
             auth_list.append(section_id)
             request.session["authorized"] = auth_list
-        if section_id == "individual_machines": return RedirectResponse(url="/machine_hub", status_code=status.HTTP_303_SEE_OTHER)
         return RedirectResponse(url=f"/dashboard/{section_id}", status_code=status.HTTP_303_SEE_OTHER)
     return RedirectResponse(url="/?error=1", status_code=status.HTTP_303_SEE_OTHER)
 
@@ -190,29 +144,47 @@ async def serve_dashboard(request: Request, section_id: str):
         return RedirectResponse(url="/", status_code=status.HTTP_303_SEE_OTHER)
     return templates.TemplateResponse(request=request, name="index.html", context={"section_id": section_id, "section_name": SECTIONS[section_id]["name"]})
 
+@app.get("/incoming_hub")
+async def serve_incoming_hub(request: Request):
+    return templates.TemplateResponse(
+        "machine_hub.html", 
+        {"request": request, "machines": MAIN_INCOMING, "hub_title": "Main Incoming Network", "hub_subtitle": "TIER 2 ENCRYPTED TELEMETRY"}
+    )
+
 @app.get("/machine_hub")
 async def serve_machine_hub(request: Request):
-    if "individual_machines" not in request.session.get("authorized", []):
-        return RedirectResponse(url="/", status_code=status.HTTP_303_SEE_OTHER)
-    return templates.TemplateResponse(request=request, name="machine_hub.html", context={"machines": INDIVIDUAL_MACHINES})
+    return templates.TemplateResponse(
+        "machine_hub.html", 
+        {"request": request, "machines": INDIVIDUAL_MACHINES, "hub_title": "Machine Directory", "hub_subtitle": "ISOLATED NODES & EXTRUDERS"}
+    )
 
 @app.post("/login_machine/{machine_id}")
 async def login_machine(request: Request, machine_id: str, password: str = Form(...)):
-    if machine_id in INDIVIDUAL_MACHINES:
-        m = INDIVIDUAL_MACHINES[machine_id]
-        if password.strip() == m["password"]:
-            m_auth_list = request.session.get("machine_auth", [])
-            if machine_id not in m_auth_list:
-                m_auth_list.append(machine_id)
-                request.session["machine_auth"] = m_auth_list
-            return RedirectResponse(url=f"/isolated/{machine_id}", status_code=status.HTTP_303_SEE_OTHER)
-    return RedirectResponse(url="/machine_hub?error=1", status_code=status.HTTP_303_SEE_OTHER)
+    is_incoming = machine_id in MAIN_INCOMING
+    m = MAIN_INCOMING.get(machine_id) or INDIVIDUAL_MACHINES.get(machine_id)
+    
+    if m and password.strip() == m["password"]:
+        m_auth_list = request.session.get("machine_auth", [])
+        if machine_id not in m_auth_list:
+            m_auth_list.append(machine_id)
+            request.session["machine_auth"] = m_auth_list
+        return RedirectResponse(url=f"/isolated/{machine_id}", status_code=status.HTTP_303_SEE_OTHER)
+    
+    # Smart Fallback
+    fallback_url = "/incoming_hub?error=1" if is_incoming else "/machine_hub?error=1"
+    return RedirectResponse(url=fallback_url, status_code=status.HTTP_303_SEE_OTHER)
 
 @app.get("/isolated/{machine_id}")
 async def serve_isolated(request: Request, machine_id: str):
-    if machine_id not in INDIVIDUAL_MACHINES or machine_id not in request.session.get("machine_auth", []):
-        return RedirectResponse(url="/machine_hub", status_code=status.HTTP_303_SEE_OTHER)
-    return templates.TemplateResponse(request=request, name="single_machine.html", context={"machine_id": machine_id, "machine_name": INDIVIDUAL_MACHINES[machine_id]["name"]})
+    if machine_id not in request.session.get("machine_auth", []):
+        is_incoming = machine_id in MAIN_INCOMING
+        return RedirectResponse(url="/incoming_hub" if is_incoming else "/machine_hub", status_code=status.HTTP_303_SEE_OTHER)
+    m = MAIN_INCOMING.get(machine_id) or INDIVIDUAL_MACHINES.get(machine_id)
+    return templates.TemplateResponse(request=request, name="single_machine.html", context={"machine_id": machine_id, "machine_name": m["name"]})
+
+# ==========================================
+# --- DATA APIs ---
+# ==========================================
 
 @app.get("/api/live_data/{section_id}")
 async def serve_api_data(section_id: str):
@@ -221,11 +193,10 @@ async def serve_api_data(section_id: str):
 @app.post("/api/update_data/{section_id}")
 async def update_live_data(section_id: str, data: dict = Body(...)):
     global LIVE_DATA, last_db_write
-    if section_id not in SECTIONS: return {"status": "error"}
     LIVE_DATA[section_id] = data
     current_time = time.time()
     
-    if DATABASE_URL and (current_time - last_db_write[section_id] >= 60):
+    if DATABASE_URL and (current_time - last_db_write.get(section_id, 0) >= 60):
         try:
             conn = get_db_connection()
             cur = conn.cursor()
@@ -348,7 +319,6 @@ async def get_monthly_stats(section_id: str):
         conn = get_db_connection()
         cur = conn.cursor(cursor_factory=RealDictCursor)
         
-        # 1. Fetch Current Month (From 1st of the month to NOW)
         cur.execute("""
             SELECT machine_id, 
                    MAX(kwh) as max_kwh, MIN(kwh) as min_kwh,
@@ -359,7 +329,6 @@ async def get_monthly_stats(section_id: str):
         """, (section_id,))
         curr_data = cur.fetchall()
         
-        # 2. Fetch Past Month (From 1st of last month to 1st of current month)
         cur.execute("""
             SELECT machine_id, 
                    MAX(kwh) as max_kwh, MIN(kwh) as min_kwh
@@ -374,12 +343,11 @@ async def get_monthly_stats(section_id: str):
         cur.close()
         conn.close()
         
-        # Bulletproof Energy Calculation (Handles both Wh and kWh database artifacts)
         def safe_energy(max_val, min_val):
             if max_val is None or min_val is None: return 0.0
             v_max = max_val / 1000 if max_val > 100000000 else max_val
             v_min = min_val / 1000 if min_val > 100000000 else min_val
-            return max(0, v_max - v_min) / 1000  # Convert to MWh
+            return max(0, v_max - v_min) / 1000 
             
         stats = {}
         for row in curr_data:
