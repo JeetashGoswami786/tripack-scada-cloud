@@ -167,7 +167,8 @@ function initCurrentBar(id) {
         },
         options: { 
             responsive: true, maintainAspectRatio: false, 
-            layout: { padding: { top: 15 } },
+            layout: { padding: { top: 20 } },
+            clip: false, // THIS IS THE MAGIC FIX: Prevents text from being cut off at the top!
             plugins: { legend: { display: false }, tooltip: { enabled: false } },
             scales: { x: { display: true, ticks: {font: {size: 9}} }, y: { display: false, beginAtZero: true, suggestedMax: 10 } }
         },
@@ -179,12 +180,12 @@ function initCurrentBar(id) {
                 chart.getDatasetMeta(0).data.forEach((datapoint, index) => {
                     const value = data.datasets[0].data[index];
                     if (value > 0) {
-                        ctx.font = 'bold 10px JetBrains Mono';
-                        ctx.fillStyle = '#64748B';
+                        ctx.font = 'bold 11px JetBrains Mono';
+                        ctx.fillStyle = '#475569';
                         ctx.textAlign = 'center';
-                        // Math.max keeps the text from going off the top of the canvas
-                        const yPos = Math.max(datapoint.y - 5, 12);
-                        ctx.fillText(value.toFixed(0) + 'A', datapoint.x, yPos);
+                        ctx.textBaseline = 'bottom';
+                        // Draws the text exactly 4 pixels above the bar
+                        ctx.fillText(value.toFixed(1) + 'A', datapoint.x, datapoint.y - 4);
                     }
                 });
                 ctx.restore();
