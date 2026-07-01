@@ -167,9 +167,27 @@ function initCurrentBar(id) {
         },
         options: { 
             responsive: true, maintainAspectRatio: false, 
+            layout: { padding: { top: 15 } },
             plugins: { legend: { display: false }, tooltip: { enabled: false } },
-            scales: { x: { display: true, ticks: {font: {size: 9}} }, y: { display: false, beginAtZero: true } }
-        }
+            scales: { x: { display: true, ticks: {font: {size: 9}} }, y: { display: false, beginAtZero: true, suggestedMax: 10 } }
+        },
+        plugins: [{
+            id: 'valuePlugin',
+            afterDatasetsDraw(chart) {
+                const { ctx, data } = chart;
+                ctx.save();
+                chart.getDatasetMeta(0).data.forEach((datapoint, index) => {
+                    const value = data.datasets[0].data[index];
+                    if(value > 0) {
+                        ctx.font = 'bold 10px JetBrains Mono';
+                        ctx.fillStyle = '#64748B';
+                        ctx.textAlign = 'center';
+                        ctx.fillText(value.toFixed(0) + 'A', datapoint.x, datapoint.y - 4);
+                    }
+                });
+                ctx.restore();
+            }
+        }]
     });
 }
 
