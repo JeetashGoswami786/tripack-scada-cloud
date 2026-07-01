@@ -209,11 +209,13 @@
                 ctx.save();
                 chart.getDatasetMeta(0).data.forEach((datapoint, index) => {
                     const value = data.datasets[0].data[index];
-                    if(value > 0) {
+                    if (value > 0) {
                         ctx.font = 'bold 14px JetBrains Mono';
                         ctx.fillStyle = '#0F172A';
                         ctx.textAlign = 'center';
-                        ctx.fillText(value.toFixed(1) + 'A', datapoint.x, datapoint.y - 8);
+                        // Math.max prevents the text from floating off the top of the canvas!
+                        const yPos = Math.max(datapoint.y - 8, 15);
+                        ctx.fillText(value.toFixed(1) + 'A', datapoint.x, yPos);
                     }
                 });
                 ctx.restore();
@@ -279,13 +281,18 @@
                     updateVal('val-kw', d.kw !== undefined ? d.kw : '---');
                     updateVal('val-pf', d.pf !== undefined ? d.pf : '---');
                     
-                    if (d.kwh_total !== undefined) {
+                    if (d.kwh_total !== undefined && d.kwh_total !== "---") {
                         updateVal('val-kwh', (parseFloat(d.kwh_total) / 1000).toFixed(3));
+                    } else {
+                        updateVal('val-kwh', '---');
                     }
                     
-                    // UPDATE THE NEW BAR CHART
+                    // UPDATE THE NEW BAR CHART SAFELY
                     if (d.i_l1 !== undefined) {
-                        currentBarChart.data.datasets[0].data = [d.i_l1, d.i_l2, d.i_l3];
+                        const i1 = parseFloat(d.i_l1) || 0;
+                        const i2 = parseFloat(d.i_l2) || 0;
+                        const i3 = parseFloat(d.i_l3) || 0;
+                        currentBarChart.data.datasets[0].data = [i1, i2, i3];
                         currentBarChart.update();
                     }
                     
