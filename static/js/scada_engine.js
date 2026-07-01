@@ -1,9 +1,8 @@
 /* ============================================================
-   SCADA ENGINE v9.1 — Bulletproof Historical Analytics
+   SCADA ENGINE v9.5 — Bulletproof HTML Dashboard
    ============================================================ */
 
 const machineCharts = {};
-const machineCurrentBars = {};
 const prevValues = {};
 const MAX_PTS = 25;
 let startTime = new Date();
@@ -31,8 +30,6 @@ setInterval(tickClock, 1000);
 
 function setDisplayMode(mode) {
     currentDisplayMode = mode;
-    
-    // Update button styles
     const btnChart = document.getElementById('btn-view-chart');
     const btnTable = document.getElementById('btn-view-table');
     
@@ -47,11 +44,7 @@ function setDisplayMode(mode) {
         document.getElementById('display-chart').style.display = 'none';
         document.getElementById('display-table').style.display = 'block';
     }
-    
-    // Re-render the data in the new mode
-    if (Object.keys(rawHistoryData).length > 0) {
-        renderHistoryChart(); 
-    }
+    if (Object.keys(rawHistoryData).length > 0) renderHistoryChart(); 
 }
 
 function animateValue(el, from, to, ms, dp = 1) {
@@ -112,6 +105,18 @@ function updateGauge(id, type, val, maxVal) {
     if (el) el.setAttribute('stroke-dasharray', `${len},138.23`);
 }
 
+function initMiniLineChart(id) {
+    const ctx = document.getElementById(`chart-${id}`).getContext('2d');
+    const grad = ctx.createLinearGradient(0, 0, 0, 70);
+    grad.addColorStop(0, 'rgba(0,143,213,0.15)');
+    grad.addColorStop(1, 'rgba(0,143,213,0.01)');
+    machineCharts[id] = new Chart(ctx, {
+        type: 'line',
+        data: { labels: Array(MAX_PTS).fill(''), datasets: [{ data: Array(MAX_PTS).fill(0), borderColor: '#008FD5', backgroundColor: grad, borderWidth: 1.5, fill: true, pointRadius: 0, tension: 0.3 }] },
+        options: { responsive: true, maintainAspectRatio: false, animation: false, scales: { y: { display: false }, x: { display: false } }, plugins: { legend: { display: false }, tooltip: { enabled: false } } }
+    });
+}
+
 function getPanelHTML(m) {
     return `
     <div class="machine-panel" id="panel-${m.id}">
@@ -129,7 +134,6 @@ function getPanelHTML(m) {
             <div class="gauge-wrap">${makeGauge(m.id, 'kw', 'POWER (kW)', 500)}</div>
             <div class="gauge-wrap">${makeGauge(m.id, 'pf', 'PWR FACTOR', 1.0)}</div>
             
-            <!-- NEW INTERACTIVE L1/L2/L3 LCD BOXES -->
             <div class="radar-column" style="display: flex; gap: 10px; align-items: center; justify-content: center; height: 100%;">
                 <div style="flex: 1; text-align: center; background: #FEF2F2; border: 2px solid #FECACA; padding: 15px 5px; border-radius: 8px;">
                     <div style="font-size: 10px; font-weight: 800; color: #EF4444; margin-bottom: 5px;">PHASE L1</div>
@@ -168,80 +172,6 @@ function getPanelHTML(m) {
     </div>`;
 }
 
-
-
-function initMiniLineChart(id) {
-    const ctx = document.getElementById(`chart-${id}`).getContext('2d');
-    const grad = ctx.createLinearGradient(0, 0, 0, 70);
-    grad.addColorStop(0, 'rgba(0,143,213,0.15)');
-    grad.addColorStop(1, 'rgba(0,143,213,0.01)');
-    machineCharts[id] = new Chart(ctx, {
-        type: 'line',
-        data: { labels: Array(MAX_PTS).fill(''), datasets: [{ data: Array(MAX_PTS).fill(0), borderColor: '#008FD5', backgroundColor: grad, borderWidth: 1.5, fill: true, pointRadius: 0, tension: 0.3 }] },
-        options: { responsive: true, maintainAspectRatio: false, animation: false, scales: { y: { display: false }, x: { display: false } }, plugins: { legend: { display: false }, tooltip: { enabled: false } } }
-    });
-}
-
-function getPanelHTML(m) {
-    return `
-    <div class="machine-panel" id="panel-${m.id}">
-        <div class="panel-header">
-            <div class="panel-title-group">
-                <div class="status-led offline" id="led-${m.id}"></div>
-                <h2 class="machine-name">${m.name}</h2>
-            </div>
-            <span class="device-id">NODE ID: ${m.id}</span>
-        </div>
-        
-        <div class="panel-body-wide">
-            <div class="gauge-wrap">${makeGauge(m.id, 'v', 'VOLTAGE (V)', 300)}</div>
-            <div class="gauge-wrap">${makeGauge(m.id, 'i', 'CURRENT (A)', 3000)}</div>
-            <div class="gauge-wrap">${makeGauge(m.id, 'kw', 'POWER (kW)', 500)}</div>
-            <div class="gauge-wrap">${makeGauge(m.id, 'pf', 'PWR FACTOR', 1.0)}</div>
-            
-            <div class="radar-column">
-                <span class="data-label" style="text-align:center; display:block;">Live Current (L1/L2/L3)</span>
-                <div class="radar-box"><canvas id="current-bar-${m.id}"></canvas></div>
-            </div>
-
-            <div class="stats-column">
-                <div class="data-row"><span class="data-label">Total Energy</span><div><span class="data-value" style="color:#10B981;" id="kwh-${m.id}">---</span><span class="data-unit">MWh</span></div></div>
-                <div class="data-row"><span class="data-label">CO₂ Eq.</span><div><span class="data-value" style="color:#008FD5;" id="co2-${m.id}">---</span><span class="data-unit">Tons</span></div></div>
-                <div class="data-row" style="border:none;">
-                    <span class="data-label">THD-V</span>
-                    <div><span class="data-value" id="thdv-${m.id}">---</span><span class="data-unit">%</span></div>
-                </div>
-                <div style="text-align: right;"><span class="thd-badge" id="badge-thdv-${m.id}">NORMAL</span></div>
-            </div>
-        </div>
-        
-        <div style="display: flex; justify-content: space-around; background: #F8FAFC; padding: 12px; border-radius: 8px; margin: 15px 0; border: 1px solid #E2E8F0;">
-            <div style="text-align:center;"><span style="font-size:11px; color:#64748B; font-weight:800; text-transform:uppercase; display:block; margin-bottom:4px;">Past Month Energy</span> <span style="font-family:'JetBrains Mono'; font-size:16px; font-weight:800; color:#0F172A;" id="past-mwh-${m.id}">---</span> <span style="font-size:11px; color:#94A3B8; font-weight:700;">MWh</span></div>
-            <div style="width: 1px; background: #E2E8F0;"></div>
-            <div style="text-align:center;"><span style="font-size:11px; color:#64748B; font-weight:800; text-transform:uppercase; display:block; margin-bottom:4px;">Current Month Energy</span> <span style="font-family:'JetBrains Mono'; font-size:16px; font-weight:800; color:#10B981;" id="curr-mwh-${m.id}">---</span> <span style="font-size:11px; color:#94A3B8; font-weight:700;">MWh</span></div>
-            <div style="width: 1px; background: #E2E8F0;"></div>
-            <div style="text-align:center;"><span style="font-size:11px; color:#64748B; font-weight:800; text-transform:uppercase; display:block; margin-bottom:4px;">Current Month Avg Load</span> <span style="font-family:'JetBrains Mono'; font-size:16px; font-weight:800; color:#008FD5;" id="curr-avg-kw-${m.id}">---</span> <span style="font-size:11px; color:#94A3B8; font-weight:700;">kW</span></div>
-        </div>
-
-        <div class="chart-container"><canvas id="chart-${m.id}"></canvas></div>
-    </div>`;
-}
-
-function initCurrentBar(id) {
-    const ctx = document.getElementById(`current-bar-${id}`).getContext('2d');
-    machineCurrentBars[id] = new Chart(ctx, {
-        type: 'bar',
-        data: {
-            labels: ['L1', 'L2', 'L3'],
-            datasets: [{ data: [0,0,0], backgroundColor: ['#F87171', '#FBBF24', '#34D399'], borderRadius: 4 }]
-        },
-        options: { 
-            responsive: true, maintainAspectRatio: false, 
-            plugins: { legend: { display: false }, tooltip: { enabled: false } },
-            scales: { x: { display: true, ticks: {font: {size: 9}} }, y: { display: false, beginAtZero: true } }
-        }
-    });
-}
 document.addEventListener('DOMContentLoaded', async () => {
     try {
         const response = await fetch(`/static/data/machines_${CURRENT_SECTION}.json`);
@@ -253,7 +183,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             gridHTML += getPanelHTML(m);
             listHTML += `<li><a href="#" style="color:#94A3B8; display:block; padding:10px 20px; text-decoration:none;" onclick="event.preventDefault(); switchTab('live'); setTimeout(() => document.getElementById('panel-${m.id}').scrollIntoView({behavior: 'smooth', block: 'start'}), 50);">${m.name}</a></li>`;
             selectorsHTML += `<label class="hist-checkbox-wrapper"><input type="checkbox" class="hist-checkbox" value="${m.id}" ${idx < 3 ? 'checked' : ''} onchange="renderHistoryChart()"> ${m.name}</label>`;
-            prevValues[m.id] = { v: 0, i: 0, kw: 0, pf: 0 };
+            prevValues[m.id] = { v: 0, i: 0, kw: 0, pf: 0, i1: 0, i2: 0, i3: 0 };
         });
 
         document.getElementById('machine-grid').innerHTML = gridHTML;
@@ -285,7 +215,7 @@ function startPolling() {
             for (const [id, d] of Object.entries(data)) {
                 if(!document.getElementById(`val-v-${id}`)) continue;
                 
-                const prev = prevValues[id] || { v: 0, i: 0, kw: 0, pf: 0 };
+                const prev = prevValues[id] || { v: 0, i: 0, kw: 0, pf: 0, i1: 0, i2: 0, i3: 0 };
                 const newV = parseFloat(d.v_l1) || 0;
                 const newI = parseFloat(d.i_l1) || 0;
                 const newKW = parseFloat(d.kw) || 0;
@@ -305,22 +235,27 @@ function startPolling() {
                 document.getElementById(`thdv-${id}`).textContent = thdv.toFixed(2);
                 updateTHDBadge(id, thdv);
                 
-                if (d.kwh_total) {
+                // SAFELY UDPATE L1/L2/L3 BOXES
+                if (d.i_l1 !== undefined && d.i_l1 !== "---") {
+                    animateValue(document.getElementById(`val-i1-${id}`), prev.i1, parseFloat(d.i_l1), 500, 1);
+                    animateValue(document.getElementById(`val-i2-${id}`), prev.i2, parseFloat(d.i_l2), 500, 1);
+                    animateValue(document.getElementById(`val-i3-${id}`), prev.i3, parseFloat(d.i_l3), 500, 1);
+                    prev.i1 = parseFloat(d.i_l1);
+                    prev.i2 = parseFloat(d.i_l2);
+                    prev.i3 = parseFloat(d.i_l3);
+                } else {
+                    document.getElementById(`val-i1-${id}`).textContent = "---";
+                    document.getElementById(`val-i2-${id}`).textContent = "---";
+                    document.getElementById(`val-i3-${id}`).textContent = "---";
+                }
+                
+                if (d.kwh_total && d.kwh_total !== "---") {
                     const mwh = parseFloat(d.kwh_total) / 1000;
                     document.getElementById(`kwh-${id}`).textContent = mwh.toFixed(2);
                     document.getElementById(`co2-${id}`).textContent = (mwh * 0.45).toFixed(1);
-                }
-                
-                // Update L1/L2/L3 LCD Readouts safely
-                if (d.i_l1 !== undefined && d.i_l1 !== "---") {
-                    animateValue(document.getElementById(`val-i1-${id}`), prevValues[id]?.i1 || 0, parseFloat(d.i_l1), 500, 1);
-                    animateValue(document.getElementById(`val-i2-${id}`), prevValues[id]?.i2 || 0, parseFloat(d.i_l2), 500, 1);
-                    animateValue(document.getElementById(`val-i3-${id}`), prevValues[id]?.i3 || 0, parseFloat(d.i_l3), 500, 1);
-                    
-                    // Store for smooth animation next tick
-                    prevValues[id].i1 = parseFloat(d.i_l1);
-                    prevValues[id].i2 = parseFloat(d.i_l2);
-                    prevValues[id].i3 = parseFloat(d.i_l3);
+                } else {
+                    document.getElementById(`kwh-${id}`).textContent = "---";
+                    document.getElementById(`co2-${id}`).textContent = "---";
                 }
 
                 if (machineCharts[id]) {
@@ -333,7 +268,7 @@ function startPolling() {
                 if(d.status === 'Online') { led.classList.remove('offline'); led.classList.add('online'); } 
                 else { led.classList.remove('online'); led.classList.add('offline'); }
                 
-                prevValues[id] = { v: newV, i: newI, kw: newKW, pf: newPF };
+                prevValues[id] = { v: newV, i: newI, kw: newKW, pf: newPF, i1: prev.i1, i2: prev.i2, i3: prev.i3 };
             }
         } catch (err) {}
     }, 2000);
@@ -358,7 +293,6 @@ function toggleCustomDates() {
 async function fetchHistoryData() {
     const tf = document.getElementById('hist-timeframe').value;
     let url = `/api/history/${CURRENT_SECTION}?timeframe=${tf}`;
-    
     if (tf === 'custom') {
         const startVal = document.getElementById('hist-start').value;
         const endVal = document.getElementById('hist-end').value;
@@ -366,13 +300,12 @@ async function fetchHistoryData() {
         const s = new Date(startVal), e = new Date(endVal);
         url += `&start=${encodeURIComponent(s.toISOString())}&end=${encodeURIComponent(e.toISOString())}`;
     }
-    
     try {
         const res = await fetch(url);
         rawHistoryData = await res.json();
         renderHistoryChart();
         if (document.getElementById('tab-heatmap').classList.contains('active')) renderHeatmap();
-    } catch (err) { console.error(err); }
+    } catch (err) {}
 }
 
 function renderHistoryChart() {
@@ -383,16 +316,12 @@ function renderHistoryChart() {
     const datasets = [];
     const colors = ['#008FD5', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6', '#3B82F6', '#14B8A6'];
     
-    // 1. Process data for all selected checkboxes
     selectedIds.forEach((id, i) => {
-        // FAILSAFE: Skip if machine has no data
         if (!rawHistoryData[id] || rawHistoryData[id].length === 0) return;
-        
         const name = masterMachineList.find(m => m.id == id)?.name || `Unit ${id}`;
         
         const dataPoints = rawHistoryData[id].map(e => {
             let yVal = e[param];
-            // Fixes the kWh/CO2 math dynamically
             if (param === 'kwh' || param === 'co2') {
                 let rawKwh = parseFloat(e.kwh || 0);
                 if (rawKwh > 100000000) rawKwh = rawKwh / 1000; 
@@ -402,51 +331,26 @@ function renderHistoryChart() {
             return { x: new Date(e.ts), y: yVal !== undefined ? yVal : 0 };
         });
 
-        datasets.push({
-            label: name,
-            data: dataPoints,
-            borderColor: colors[i % colors.length], 
-            borderWidth: 2, 
-            pointRadius: 0, 
-            tension: 0.2
-        });
+        datasets.push({ label: name, data: dataPoints, borderColor: colors[i % colors.length], borderWidth: 2, pointRadius: 0, tension: 0.2 });
     });
 
-    // 2. Decide whether to draw Chart or Table based on the UI Toggle
     const paramName = document.getElementById('hist-param').options[document.getElementById('hist-param').selectedIndex].text;
     
     if (currentDisplayMode === 'chart') {
-        // --- DRAW GRAPH ---
         if (masterHistoryChart) masterHistoryChart.destroy();
-        
-        // Only render if datasets exist to prevent blank canvas errors
         if (datasets.length > 0) {
             masterHistoryChart = new Chart(ctx, {
                 type: 'line', data: { datasets },
-                options: { 
-                    responsive: true, maintainAspectRatio: false, 
-                    scales: { x: { type: 'time', grid:{display:false} } },
-                    plugins: { legend: { position: 'top' } }
-                }
+                options: { responsive: true, maintainAspectRatio: false, scales: { x: { type: 'time', grid:{display:false} } }, plugins: { legend: { position: 'top' } } }
             });
         }
     } else {
-        // --- DRAW TABLE ---
         document.getElementById('table-param-header').textContent = paramName;
         let tableHTML = '';
-        
-        // Combine all selected datasets into one flat array so we can sort them
         let flatData = [];
-        datasets.forEach(ds => {
-            ds.data.forEach(point => {
-                flatData.push({ time: point.x, name: ds.label, value: point.y });
-            });
-        });
-
-        // Sort by newest timestamp first
+        datasets.forEach(ds => { ds.data.forEach(point => { flatData.push({ time: point.x, name: ds.label, value: point.y }); }); });
         flatData.sort((a, b) => b.time - a.time);
 
-        // Build HTML Rows
         flatData.forEach(row => {
             tableHTML += `
                 <tr style="transition: 0.2s; border-bottom: 1px solid #E2E8F0;">
@@ -455,7 +359,6 @@ function renderHistoryChart() {
                     <td style="padding: 12px 15px; font-family: 'JetBrains Mono'; font-weight: 800; font-size: 15px; color: #008FD5;">${parseFloat(row.value).toFixed(2)}</td>
                 </tr>`;
         });
-        
         document.getElementById('history-table-body').innerHTML = tableHTML;
     }
 }
@@ -463,14 +366,12 @@ function renderHistoryChart() {
 function renderHeatmap() {
     if (Object.keys(rawHistoryData).length === 0) return;
     const heatMatrix = Array(7).fill().map(() => Array(24).fill(0));
-    
     for (const dataArray of Object.values(rawHistoryData)) {
         dataArray.forEach(row => {
             const d = new Date(row.ts);
             heatMatrix[d.getDay()][d.getHours()] += parseFloat(row.kw || 0);
         });
     }
-
     const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
     const seriesData = days.map((dayName, dIdx) => ({
         name: dayName,
@@ -495,9 +396,9 @@ function downloadCSV() {
     }
     window.location.href = url; 
 }
+
 function downloadPDF() { html2pdf().set({ margin: 0.2, filename: `${CURRENT_SECTION}_Report.pdf`, jsPDF: { format: 'a3', orientation: 'landscape' } }).from(document.getElementById('chart-export-area')).save(); }
 
-// --- MONTHLY METRICS FETCHER ---
 async function fetchMonthlyStats() {
     try {
         const res = await fetch(`/api/monthly_stats/${CURRENT_SECTION}`);
@@ -512,6 +413,5 @@ async function fetchMonthlyStats() {
     } catch(e) {}
 }
 
-// Call once on load, then every 5 minutes (300,000 ms)
 setTimeout(fetchMonthlyStats, 1500); 
 setInterval(fetchMonthlyStats, 300000);
