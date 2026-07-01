@@ -201,6 +201,25 @@
         let currentDisplayMode = 'chart';
 
         // --- NEW 3-PHASE BAR CHART ---
+        // --- NEW: INLINE PLUGIN TO DRAW EXACT VALUES ---
+        const valuePlugin = {
+            id: 'valuePlugin',
+            afterDatasetsDraw(chart) {
+                const { ctx, data } = chart;
+                ctx.save();
+                chart.getDatasetMeta(0).data.forEach((datapoint, index) => {
+                    const value = data.datasets[0].data[index];
+                    if(value > 0) {
+                        ctx.font = 'bold 14px JetBrains Mono';
+                        ctx.fillStyle = '#0F172A';
+                        ctx.textAlign = 'center';
+                        ctx.fillText(value.toFixed(1) + 'A', datapoint.x, datapoint.y - 8);
+                    }
+                });
+                ctx.restore();
+            }
+        };
+
         const ctxBar = document.getElementById('currentBarChart').getContext('2d');
         let currentBarChart = new Chart(ctxBar, {
             type: 'bar',
@@ -208,9 +227,14 @@
                 labels: ['Phase L1', 'Phase L2', 'Phase L3'],
                 datasets: [{ label: 'Current (Amps)', data: [0, 0, 0], backgroundColor: ['#F87171', '#FBBF24', '#34D399'], borderRadius: 6 }]
             },
-            options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true } } }
+            options: { 
+                responsive: true, maintainAspectRatio: false, 
+                layout: { padding: { top: 25 } }, // Adds space so text isn't cut off
+                plugins: { legend: { display: false } }, 
+                scales: { y: { beginAtZero: true, suggestedMax: 10 } } 
+            },
+            plugins: [valuePlugin] // Activates the text drawing
         });
-
         function switchTab(tabName) {
             document.getElementById('tab-live').classList.toggle('active', tabName === 'live');
             document.getElementById('tab-history').classList.toggle('active', tabName === 'history');
