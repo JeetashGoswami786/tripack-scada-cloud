@@ -48,19 +48,14 @@
     </div>
 
     <div class="hub-container">
-        <div class="portal-card" onclick="toggleZone('zone-incoming')">
+        <!-- CARD 1: MAIN INCOMING -->
+        <div class="portal-card" onclick="window.location.href='/incoming_hub'">
             <div class="card-icon">⚡</div>
             <div class="card-title">Main Incoming</div>
             <div class="card-desc">Utility feeders and external grid synchronizations.</div>
-            
-            <div class="auth-zone" id="zone-incoming" onclick="event.stopPropagation()">
-                <form action="/login/individual_machines" method="post">
-                    <input type="password" name="password" placeholder="Enter Access Code" required>
-                    <button type="submit" class="btn-submit">Authenticate</button>
-                </form>
-            </div>
         </div>
 
+        <!-- CARD 2: ISOLATED MACHINES DIRECTORY -->
         <div class="portal-card" onclick="window.location.href='/machine_hub'">
             <div class="card-icon">⚙️</div>
             <div class="card-title">Machine Directory</div>
