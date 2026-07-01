@@ -118,9 +118,23 @@
                 <div style="text-align:center;"><span style="font-size:12px; color:#64748B; font-weight:800; text-transform:uppercase; display:block; margin-bottom:8px;">Current Month Avg Load</span> <span style="font-family:'JetBrains Mono'; font-size:24px; font-weight:800; color:#008FD5;" id="curr-avg-kw">---</span> <span style="font-size:14px; color:#94A3B8; font-weight:700;">kW</span></div>
             </div>
 
+            <!-- NEW INTERACTIVE L1/L2/L3 LCD BOXES -->
             <div class="metric-card" style="margin-bottom: 20px;">
                 <div class="metric-label">Live Current Profile (L1 / L2 / L3)</div>
-                <div style="height: 180px; width: 100%;"><canvas id="currentBarChart"></canvas></div>
+                <div style="display: flex; gap: 15px; align-items: center; justify-content: space-between; height: 120px;">
+                    <div style="flex: 1; height: 100%; text-align: center; background: #FEF2F2; border: 2px solid #FECACA; padding: 25px 10px; border-radius: 8px;">
+                        <div style="font-size: 12px; font-weight: 800; color: #EF4444; margin-bottom: 5px;">PHASE L1</div>
+                        <div style="font-family: 'JetBrains Mono'; font-size: 32px; font-weight: 900; color: #B91C1C;"><span id="val-i1">---</span><span style="font-size: 16px;">A</span></div>
+                    </div>
+                    <div style="flex: 1; height: 100%; text-align: center; background: #FFFBEB; border: 2px solid #FDE68A; padding: 25px 10px; border-radius: 8px;">
+                        <div style="font-size: 12px; font-weight: 800; color: #F59E0B; margin-bottom: 5px;">PHASE L2</div>
+                        <div style="font-family: 'JetBrains Mono'; font-size: 32px; font-weight: 900; color: #B45309;"><span id="val-i2">---</span><span style="font-size: 16px;">A</span></div>
+                    </div>
+                    <div style="flex: 1; height: 100%; text-align: center; background: #ECFDF5; border: 2px solid #A7F3D0; padding: 25px 10px; border-radius: 8px;">
+                        <div style="font-size: 12px; font-weight: 800; color: #10B981; margin-bottom: 5px;">PHASE L3</div>
+                        <div style="font-family: 'JetBrains Mono'; font-size: 32px; font-weight: 900; color: #047857;"><span id="val-i3">---</span><span style="font-size: 16px;">A</span></div>
+                    </div>
+                </div>
             </div>
 
             <div class="metrics-grid">
@@ -199,45 +213,10 @@
         let rawHistoryData = {};
         let masterHistoryChart = null;
         let currentDisplayMode = 'chart';
-
-        // --- BULLETPROOF VALUE PLUGIN ---
-        const valuePlugin = {
-            id: 'valuePlugin',
-            afterDatasetsDraw(chart) {
-                const { ctx, data } = chart;
-                ctx.save();
-                chart.getDatasetMeta(0).data.forEach((datapoint, index) => {
-                    let value = data.datasets[0].data[index];
-                    value = parseFloat(value);
-                    if (!isNaN(value) && value > 0) {
-                        ctx.font = 'bold 14px JetBrains Mono';
-                        ctx.fillStyle = '#0F172A';
-                        ctx.textAlign = 'center';
-                        ctx.textBaseline = 'bottom';
-                        ctx.fillText(value.toFixed(1) + 'A', datapoint.x, datapoint.y - 6);
-                    }
-                });
-                ctx.restore();
-            }
-        };
+        
 
         const ctxBar = document.getElementById('currentBarChart').getContext('2d');
-        let currentBarChart = new Chart(ctxBar, {
-            type: 'bar',
-            data: {
-                labels: ['Phase L1', 'Phase L2', 'Phase L3'],
-                datasets: [{ label: 'Current (Amps)', data: [0, 0, 0], backgroundColor: ['#F87171', '#FBBF24', '#34D399'], borderRadius: 6 }]
-            },
-            options: { 
-                responsive: true, maintainAspectRatio: false, 
-                layout: { padding: { top: 25 } }, 
-                clip: false, // MAGIC FIX FOR SINGLE MACHINES
-                plugins: { legend: { display: false } }, 
-                scales: { y: { beginAtZero: true, suggestedMax: 10 } } 
-            },
-            plugins: [valuePlugin]
-        });
-
+        
         function switchTab(tabName) {
             document.getElementById('tab-live').classList.toggle('active', tabName === 'live');
             document.getElementById('tab-history').classList.toggle('active', tabName === 'history');
@@ -287,13 +266,15 @@
                         updateVal('val-kwh', '---');
                     }
                     
-                    // SAFELY PARSE CURRENT (Ignores "---")
+                    // SAFELY UPDATE L1/L2/L3 BOXES (Ignores "---")
                     if (d.i_l1 !== undefined && d.i_l1 !== "---") {
-                        const i1 = parseFloat(d.i_l1) || 0;
-                        const i2 = parseFloat(d.i_l2) || 0;
-                        const i3 = parseFloat(d.i_l3) || 0;
-                        currentBarChart.data.datasets[0].data = [i1, i2, i3];
-                        currentBarChart.update();
+                        updateVal('val-i1', parseFloat(d.i_l1).toFixed(1));
+                        updateVal('val-i2', parseFloat(d.i_l2).toFixed(1));
+                        updateVal('val-i3', parseFloat(d.i_l3).toFixed(1));
+                    } else {
+                        updateVal('val-i1', '---');
+                        updateVal('val-i2', '---');
+                        updateVal('val-i3', '---');
                     }
                     
                     const isOnline = d.status === 'Online';
