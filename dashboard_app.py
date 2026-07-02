@@ -67,13 +67,7 @@ INDIVIDUAL_MACHINES = {
     "m_k51": {"name": "K5 1 (CPP)", "password": "machine32"},
     "m_ps4": {"name": "PS 4 (CPP)", "password": "machine33"},
     "m_k53": {"name": "K5 3 (CPP)", "password": "machine34"},
-    "m_ps6": {"name": "PS 6 (CPP)", "password": "machine35"},
-    "m_sh11": {"name": "SH-11 (L4)", "password": "machine36"},
-    "m_sh31": {"name": "SH-31 (L4)", "password": "machine37"},
-    "m_sg31": {"name": "SG-31 (L4)", "password": "machine38"},
-    "m_se31": {"name": "SE-31 (L4)", "password": "machine39"},
-    "m_sr11": {"name": "SR-11 (L4)", "password": "machine40"},
-    "m_sd11": {"name": "SD-11 (L4)", "password": "machine41"}
+    "m_ps6": {"name": "PS 6 (CPP)", "password": "machine35"}
 }
 
 # Ensure isolated nodes have a memory slot in the backend!
