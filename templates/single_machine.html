@@ -40,17 +40,19 @@
         .status-dot.offline { background: #EF4444; animation: none; }
         @keyframes pulse { 0% { transform: scale(1); opacity: 1; } 50% { transform: scale(1.2); opacity: 0.7; } 100% { transform: scale(1); opacity: 1; } }
 
-        .metrics-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 20px; margin-bottom: 20px; }
+        /* SPEEDOMETER GAUGE CSS */
+        .gauge-wrap { text-align: center; background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 12px; padding: 25px 10px; box-shadow: 0 4px 10px rgba(0,0,0,0.02); }
+        .industrial-gauge { width: 100%; max-width: 140px; margin: 0 auto; display: block; }
+        .gauge-track { fill: none; stroke: #E2E8F0; stroke-width: 8; stroke-linecap: round; }
+        .gauge-fill { fill: none; stroke-width: 8; stroke-linecap: round; transition: stroke-dasharray 0.5s ease-out; }
+        .gauge-value { font-family: 'JetBrains Mono', monospace; font-size: 18px; font-weight: bold; fill: #0F172A; text-anchor: middle; }
+        .gauge-unit { font-family: 'Inter', sans-serif; font-size: 8px; font-weight: 800; fill: #64748B; text-anchor: middle; }
+        .gauge-range-label { font-family: 'JetBrains Mono', monospace; font-size: 6px; fill: #94A3B8; }
+        .gauge-tick { stroke: #CBD5E1; stroke-width: 1; }
+        .gauge-tick-major { stroke: #94A3B8; stroke-width: 2; }
+
         .metric-card { background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 12px; padding: 25px; display: flex; flex-direction: column; justify-content: space-between; position: relative; overflow: hidden; box-shadow: 0 4px 10px rgba(0,0,0,0.02); }
-        .metric-card::after { content: ''; position: absolute; top: 0; left: 0; width: 100%; height: 4px; background: #E2E8F0; }
-        .metric-card.active-power::after { background: #008FD5; }
-        .metric-card.voltage::after { background: #FBBF24; }
-        .metric-card.current::after { background: #F87171; }
-        
         .metric-label { font-size: 13px; font-weight: 800; color: #64748B; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 10px; }
-        .metric-value-wrapper { display: flex; align-items: baseline; gap: 6px; }
-        .metric-val { font-family: 'JetBrains Mono', monospace; font-size: 38px; font-weight: 800; color: #0F172A; }
-        .metric-unit { font-size: 16px; font-weight: 700; color: #94A3B8; }
 
         .energy-card { background: #FFFFFF; border: 2px solid #10B981; border-radius: 12px; padding: 35px; display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px; box-shadow: 0 10px 25px rgba(16,185,129,0.1); position: relative; }
         .energy-card::before { content: ''; position: absolute; top: 0; left: 0; width: 6px; height: 100%; background: #10B981; }
@@ -69,14 +71,12 @@
 
         .master-chart-container { background: white; padding: 20px; border-radius: 12px; height: 500px; position: relative; border: 1px solid #E2E8F0; box-shadow: 0 4px 15px rgba(0,0,0,0.03); }
         
-        /* DATA TABLE STYLING */
         .table-view { display: none; height: 100%; overflow-y: auto; }
         .data-table { width: 100%; border-collapse: collapse; text-align: left; }
         .data-table th { background: #F8FAFC; padding: 15px; font-weight: 800; color: #64748B; border-bottom: 2px solid #E2E8F0; position: sticky; top: 0; }
         .data-table td { padding: 12px 15px; border-bottom: 1px solid #E2E8F0; font-family: 'JetBrains Mono'; font-weight: 600; font-size: 14px; color: #0F172A; }
         .data-table tr:hover { background: #F1F5F9; }
 
-        /* TOGGLE BUTTONS */
         .toggle-btn-group { display: flex; background: #F1F5F9; border-radius: 6px; padding: 4px; border: 1px solid #E2E8F0; }
         .toggle-btn { flex: 1; padding: 8px 15px; border: none; background: transparent; font-family: 'Inter'; font-weight: 800; font-size: 12px; color: #64748B; cursor: pointer; border-radius: 4px; transition: 0.2s; text-transform: uppercase; }
         .toggle-btn.active { background: #FFFFFF; color: #008FD5; box-shadow: 0 2px 5px rgba(0,0,0,0.05); }
@@ -101,6 +101,7 @@
             <button class="tab-btn" id="tab-history" onclick="switchTab('history')">Historical Data</button>
         </div>
 
+        <!-- LIVE VIEW -->
         <div id="view-live" class="view-section active">
             <div class="status-bar">
                 <span class="status-label">DATA LINK STATUS</span>
@@ -110,6 +111,7 @@
                 </div>
             </div>
 
+            <!-- TOP BANNER: MONTHLY METRICS -->
             <div style="display: flex; justify-content: space-around; background: #FFFFFF; padding: 20px; border-radius: 12px; margin-bottom: 25px; border: 1px solid #E2E8F0; box-shadow: 0 4px 10px rgba(0,0,0,0.02);">
                 <div style="text-align:center;"><span style="font-size:12px; color:#64748B; font-weight:800; text-transform:uppercase; display:block; margin-bottom:8px;">Past Month Energy</span> <span style="font-family:'JetBrains Mono'; font-size:24px; font-weight:800; color:#0F172A;" id="past-mwh">---</span> <span style="font-size:14px; color:#94A3B8; font-weight:700;">MWh</span></div>
                 <div style="width: 2px; background: #F1F5F9;"></div>
@@ -118,8 +120,8 @@
                 <div style="text-align:center;"><span style="font-size:12px; color:#64748B; font-weight:800; text-transform:uppercase; display:block; margin-bottom:8px;">Current Month Avg Load</span> <span style="font-family:'JetBrains Mono'; font-size:24px; font-weight:800; color:#008FD5;" id="curr-avg-kw">---</span> <span style="font-size:14px; color:#94A3B8; font-weight:700;">kW</span></div>
             </div>
 
-            <!-- NEW INTERACTIVE L1/L2/L3 LCD BOXES -->
-            <div class="metric-card" style="margin-bottom: 20px;">
+            <!-- L1 / L2 / L3 LCD DISPLAY -->
+            <div class="metric-card" style="margin-bottom: 25px;">
                 <div class="metric-label">Live Current Profile (L1 / L2 / L3)</div>
                 <div style="display: flex; gap: 15px; align-items: center; justify-content: space-between; height: 120px;">
                     <div style="flex: 1; height: 100%; text-align: center; background: #FEF2F2; border: 2px solid #FECACA; padding: 25px 10px; border-radius: 8px;">
@@ -137,23 +139,22 @@
                 </div>
             </div>
 
-            <div class="metrics-grid">
-                <div class="metric-card voltage">
-                    <div class="metric-label">Voltage (L1)</div>
-                    <div class="metric-value-wrapper"><span class="metric-val" id="val-v">---</span><span class="metric-unit">V</span></div>
-                </div>
-                <div class="metric-card active-power">
-                    <div class="metric-label">Active Power</div>
-                    <div class="metric-value-wrapper"><span class="metric-val" id="val-kw">---</span><span class="metric-unit">kW</span></div>
-                </div>
+            <!-- NEW 4-COLUMN GAUGES -->
+            <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 20px; margin-bottom: 25px;">
+                <div class="gauge-wrap" id="wrap-gauge-v"></div>
+                <div class="gauge-wrap" id="wrap-gauge-i"></div>
+                <div class="gauge-wrap" id="wrap-gauge-kw"></div>
+                <div class="gauge-wrap" id="wrap-gauge-pf"></div>
             </div>
 
+            <!-- UPDATED BIG BOTTOM CARD -->
             <div class="energy-card">
-                <div class="energy-label">Total Active Energy</div>
-                <div><span class="energy-val" id="val-kwh">---</span> <span class="energy-unit">MWh</span></div>
+                <div class="energy-label">CURRENT MONTH ENERGY (LIVE)</div>
+                <div><span class="energy-val" id="big-curr-mwh">---</span> <span class="energy-unit">MWh</span></div>
             </div>
         </div>
 
+        <!-- HISTORY VIEW -->
         <div id="view-history" class="view-section">
             <div class="history-controls">
                 <div class="control-group">
@@ -195,12 +196,9 @@
             
             <div class="master-chart-container" id="chart-export-area">
                 <div class="loading-history" id="hist-loader" style="display: none;">Fetching Data...</div>
-                
                 <div id="display-chart" style="height: 100%;"><canvas id="master-history-chart"></canvas></div>
-                
                 <div id="display-table" class="table-view">
-                    <table class="data-table" id="history-table-body">
-                        </table>
+                    <table class="data-table" id="history-table-body"></table>
                 </div>
             </div>
         </div>
@@ -213,6 +211,72 @@
         let rawHistoryData = {};
         let masterHistoryChart = null;
         let currentDisplayMode = 'chart';
+        let prevVals = { v: 0, i: 0, kw: 0, pf: 0 };
+
+        // --- GAUGE GENERATION LOGIC ---
+        function buildTicks() {
+            let s = '';
+            for (let i = 0; i <= 10; i++) {
+                const ang = Math.PI + (Math.PI * i / 10);
+                const major = i % 5 === 0;
+                const r0 = major ? 38 : 41;
+                const r1 = 45;
+                s += `<line x1="${(60 + r0 * Math.cos(ang)).toFixed(1)}" y1="${(56 + r0 * Math.sin(ang)).toFixed(1)}" x2="${(60 + r1 * Math.cos(ang)).toFixed(1)}" y2="${(56 + r1 * Math.sin(ang)).toFixed(1)}" class="${major ? 'gauge-tick-major' : 'gauge-tick'}" />`;
+            }
+            return s;
+        }
+
+        function makeGauge(id, type, label, maxVal) {
+            const colors = { 'v': { c1: '#FBBF24', c2: '#F59E0B' }, 'i': { c1: '#34D399', c2: '#10B981' }, 'kw': { c1: '#38BDF8', c2: '#0284C7' }, 'pf': { c1: '#A78BFA', c2: '#7C3AED' } }[type];
+            return `
+            <svg viewBox="0 0 120 72" class="industrial-gauge">
+              <defs><linearGradient id="gGrad-${type}-${id}" x1="0%" y1="0%" x2="100%" y2="0%"><stop offset="0%" stop-color="${colors.c1}"/><stop offset="100%" stop-color="${colors.c2}"/></linearGradient></defs>
+              ${buildTicks()}
+              <path class="gauge-track" d="M 16 56 A 44 44 0 0 1 104 56"/>
+              <path class="gauge-fill" id="gauge-${type}-${id}" d="M 16 56 A 44 44 0 0 1 104 56" stroke="url(#gGrad-${type}-${id})" stroke-dasharray="0,138.23"/>
+              <text x="60" y="51" class="gauge-value" id="val-${type}-${id}">0</text>
+              <text x="60" y="61" class="gauge-unit">${label}</text>
+              <text x="17" y="68" class="gauge-range-label" text-anchor="start">0</text>
+              <text x="103" y="68" class="gauge-range-label" text-anchor="end">${maxVal}</text>
+            </svg>`;
+        }
+
+        function updateGauge(id, type, val, maxVal) {
+            const pct = Math.min(Math.max(val / maxVal, 0), 1);
+            const len = (pct * 138.23).toFixed(2);
+            const el = document.getElementById(`gauge-${type}-${id}`);
+            if (el) el.setAttribute('stroke-dasharray', `${len},138.23`);
+        }
+
+        // Inject Gauges on Load
+        document.getElementById('wrap-gauge-v').innerHTML = makeGauge(MACHINE_ID, 'v', 'VOLTAGE (V)', 300);
+        document.getElementById('wrap-gauge-i').innerHTML = makeGauge(MACHINE_ID, 'i', 'CURRENT (A)', 3000);
+        document.getElementById('wrap-gauge-kw').innerHTML = makeGauge(MACHINE_ID, 'kw', 'POWER (kW)', 500);
+        document.getElementById('wrap-gauge-pf').innerHTML = makeGauge(MACHINE_ID, 'pf', 'PWR FACTOR', 1.0);
+
+
+        // --- ANIMATION & LOGIC ---
+        function animateValue(el, from, to, ms, dp = 1) {
+            if (!el) return;
+            if (isNaN(from) || isNaN(to)) { el.textContent = isNaN(to) ? '---' : to.toFixed(dp); return; }
+            const diff = to - from;
+            if (Math.abs(diff) < 0.005) { el.textContent = to.toFixed(dp); return; }
+            const t0 = performance.now();
+            function tick(now) {
+                const p = Math.min((now - t0) / ms, 1);
+                el.textContent = (from + diff * (1 - Math.pow(1 - p, 3))).toFixed(dp);
+                if (p < 1) requestAnimationFrame(tick);
+            }
+            requestAnimationFrame(tick);
+        }
+
+        function updateValText(id, newVal) {
+            const el = document.getElementById(id);
+            if (el && el.textContent !== String(newVal)) {
+                el.textContent = newVal;
+                if (el.textContent !== "---") { el.classList.remove('flash'); void el.offsetWidth; el.classList.add('flash'); }
+            }
+        }
 
         function switchTab(tabName) {
             document.getElementById('tab-live').classList.toggle('active', tabName === 'live');
@@ -231,18 +295,6 @@
             processHistoryData(); 
         }
 
-        function updateVal(id, newVal) {
-            const el = document.getElementById(id);
-            if (el && el.textContent !== String(newVal)) {
-                el.textContent = newVal;
-                if (el.textContent !== "---") {
-                    el.classList.remove('flash');
-                    void el.offsetWidth;
-                    el.classList.add('flash');
-                }
-            }
-        }
-
         // --- SAFE DATA POLLER ---
         setInterval(async () => {
             try {
@@ -252,26 +304,41 @@
                 if (allData[MACHINE_ID]) {
                     const d = allData[MACHINE_ID];
                     
-                    updateVal('val-v', d.v_l1 !== undefined ? d.v_l1 : '---');
-                    updateVal('val-kw', d.kw !== undefined ? d.kw : '---');
-                    updateVal('val-pf', d.pf !== undefined ? d.pf : '---');
-                    
-                    if (d.kwh_total !== undefined && d.kwh_total !== "---") {
-                        updateVal('val-kwh', (parseFloat(d.kwh_total) / 1000).toFixed(3));
-                    } else {
-                        updateVal('val-kwh', '---');
-                    }
-                    
+                    // 1. Update Smooth Gauges
+                    if (d.v_l1 !== undefined && d.v_l1 !== "---") {
+                        animateValue(document.getElementById(`val-v-${MACHINE_ID}`), prevVals.v, parseFloat(d.v_l1), 500, 1);
+                        updateGauge(MACHINE_ID, 'v', parseFloat(d.v_l1), 300);
+                        prevVals.v = parseFloat(d.v_l1);
+                    } else { updateValText(`val-v-${MACHINE_ID}`, '---'); updateGauge(MACHINE_ID, 'v', 0, 300); }
+
                     if (d.i_l1 !== undefined && d.i_l1 !== "---") {
-                        updateVal('val-i1', parseFloat(d.i_l1).toFixed(1));
-                        updateVal('val-i2', parseFloat(d.i_l2).toFixed(1));
-                        updateVal('val-i3', parseFloat(d.i_l3).toFixed(1));
+                        animateValue(document.getElementById(`val-i-${MACHINE_ID}`), prevVals.i, parseFloat(d.i_l1), 500, 1);
+                        updateGauge(MACHINE_ID, 'i', parseFloat(d.i_l1), 3000);
+                        prevVals.i = parseFloat(d.i_l1);
+                    } else { updateValText(`val-i-${MACHINE_ID}`, '---'); updateGauge(MACHINE_ID, 'i', 0, 3000); }
+
+                    if (d.kw !== undefined && d.kw !== "---") {
+                        animateValue(document.getElementById(`val-kw-${MACHINE_ID}`), prevVals.kw, parseFloat(d.kw), 500, 2);
+                        updateGauge(MACHINE_ID, 'kw', parseFloat(d.kw), 500);
+                        prevVals.kw = parseFloat(d.kw);
+                    } else { updateValText(`val-kw-${MACHINE_ID}`, '---'); updateGauge(MACHINE_ID, 'kw', 0, 500); }
+
+                    if (d.pf !== undefined && d.pf !== "---") {
+                        animateValue(document.getElementById(`val-pf-${MACHINE_ID}`), prevVals.pf, parseFloat(d.pf), 500, 2);
+                        updateGauge(MACHINE_ID, 'pf', parseFloat(d.pf), 1.0);
+                        prevVals.pf = parseFloat(d.pf);
+                    } else { updateValText(`val-pf-${MACHINE_ID}`, '---'); updateGauge(MACHINE_ID, 'pf', 0, 1.0); }
+                    
+                    // 2. Update LCD Text Boxes
+                    if (d.i_l1 !== undefined && d.i_l1 !== "---") {
+                        updateValText('val-i1', parseFloat(d.i_l1).toFixed(1));
+                        updateValText('val-i2', parseFloat(d.i_l2).toFixed(1));
+                        updateValText('val-i3', parseFloat(d.i_l3).toFixed(1));
                     } else {
-                        updateVal('val-i1', '---');
-                        updateVal('val-i2', '---');
-                        updateVal('val-i3', '---');
+                        updateValText('val-i1', '---'); updateValText('val-i2', '---'); updateValText('val-i3', '---');
                     }
                     
+                    // 3. Status Link
                     const isOnline = d.status === 'Online';
                     document.getElementById('conn-text').textContent = isOnline ? 'ONLINE & SYNCED' : 'OFFLINE';
                     document.getElementById('conn-status-wrap').className = isOnline ? 'status-indicator' : 'status-indicator offline';
@@ -280,6 +347,7 @@
             } catch (err) { }
         }, 2000);
 
+        // --- HISTORY & MONTHLY FETCHERS ---
         async function fetchHistoryData() {
             document.getElementById('hist-loader').style.display = 'block';
             const tf = document.getElementById('hist-timeframe').value;
@@ -335,16 +403,19 @@
                     document.getElementById(`past-mwh`).textContent = stats[MACHINE_ID].past_month_energy;
                     document.getElementById(`curr-mwh`).textContent = stats[MACHINE_ID].current_month_energy;
                     document.getElementById(`curr-avg-kw`).textContent = stats[MACHINE_ID].current_month_avg_kw;
+                    
+                    // UPDATE THE NEW MASSIVE CARD AT THE BOTTOM!
+                    document.getElementById(`big-curr-mwh`).textContent = stats[MACHINE_ID].current_month_energy;
                 }
             } catch(e) {}
         }
         
-        setTimeout(fetchMonthlyStats, 1500); 
-        setInterval(fetchMonthlyStats, 300000);
+        // Fast ping for initial load, then query the DB every 60 seconds to keep the "Live Month Energy" snappy.
+        setTimeout(fetchMonthlyStats, 1000); 
+        setInterval(fetchMonthlyStats, 60000);
 
         function downloadIsolatedCSV() { window.location.href = `/api/export_csv/individual_machines?timeframe=${document.getElementById('hist-timeframe').value}`; }
         function downloadPDF() { html2pdf().set({ margin: 0.2, filename: `${MACHINE_NAME}_Report.pdf`, jsPDF: { format: 'a3', orientation: 'landscape' } }).from(document.getElementById('chart-export-area')).save(); }
     </script>
-    
 </body>
 </html>
