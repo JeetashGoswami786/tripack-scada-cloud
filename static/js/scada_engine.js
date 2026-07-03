@@ -201,12 +201,24 @@ document.addEventListener('DOMContentLoaded', async () => {
 function updateTHDBadge(id, val) {
     const badge = document.getElementById(`badge-thdv-${id}`);
     if (!badge) return;
-    if (val === '---' || val === 0) { badge.textContent = "NORMAL"; badge.style.color = "#059669"; badge.style.background = "#ECFDF5"; badge.style.borderColor = "#A7F3D0"; return; }
     
-    const num = parseFloat(val);
-    if (num < 3.0) { badge.textContent = "NORMAL"; badge.style.color = "#059669"; badge.style.background = "#ECFDF5"; badge.style.borderColor = "#A7F3D0";
-    } else if (num >= 3.0 && num <= 5.0) { badge.textContent = "WARNING"; badge.style.color = "#D97706"; badge.style.background = "#FFFBEB"; badge.style.borderColor = "#FDE68A";
-    } else { badge.textContent = "CRITICAL"; badge.style.color = "#DC2626"; badge.style.background = "#FEF2F2"; badge.style.borderColor = "#FECACA"; }
+    // Safety check: if val is 0, it is normal
+    if (val === 0 || isNaN(val)) { 
+        badge.textContent = "NORMAL"; 
+        badge.style.color = "#059669"; badge.style.background = "#ECFDF5"; 
+        badge.style.borderColor = "#A7F3D0"; return; 
+    }
+    
+    if (val < 3.0) { 
+        badge.textContent = "NORMAL"; 
+        badge.style.color = "#059669"; badge.style.background = "#ECFDF5"; badge.style.borderColor = "#A7F3D0";
+    } else if (val >= 3.0 && val <= 5.0) { 
+        badge.textContent = "WARNING"; 
+        badge.style.color = "#D97706"; badge.style.background = "#FFFBEB"; badge.style.borderColor = "#FDE68A";
+    } else { 
+        badge.textContent = "CRITICAL"; 
+        badge.style.color = "#DC2626"; badge.style.background = "#FEF2F2"; badge.style.borderColor = "#FECACA"; 
+    }
 }
 
 function startPolling() {
@@ -235,6 +247,8 @@ function startPolling() {
                 updateGauge(id, 'kw', newKW, 500);
                 updateGauge(id, 'pf', newPF, 1.0);
 
+                let thdv = parseFloat(d.thd_v) || 0;
+                if (thdv > 200) thdv = 0; // Hide impossible spikes
                 document.getElementById(`thdv-${id}`).textContent = thdv.toFixed(2);
                 updateTHDBadge(id, thdv);
                 
