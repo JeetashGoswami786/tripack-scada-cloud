@@ -254,9 +254,9 @@ function startPolling() {
                 }
                 
                 if (d.kwh_total && d.kwh_total !== "---") {
-                    const mwh = parseFloat(d.kwh_total) / 1000;
-                    document.getElementById(`kwh-${id}`).textContent = mwh.toFixed(2);
-                    document.getElementById(`co2-${id}`).textContent = (mwh * 0.45).toFixed(1);
+                    const rawKwh = parseFloat(d.kwh_total);
+                    document.getElementById(`kwh-${id}`).textContent = rawKwh.toFixed(1);
+                    document.getElementById(`co2-${id}`).textContent = ((rawKwh / 1000) * 0.45).toFixed(2);
                 } else {
                     document.getElementById(`kwh-${id}`).textContent = "---";
                     document.getElementById(`co2-${id}`).textContent = "---";
