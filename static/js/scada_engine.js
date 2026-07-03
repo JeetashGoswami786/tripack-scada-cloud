@@ -134,26 +134,23 @@ function getPanelHTML(m) {
             <div class="gauge-wrap">${makeGauge(m.id, 'kw', 'POWER (kW)', 500)}</div>
             <div class="gauge-wrap">${makeGauge(m.id, 'pf', 'PWR FACTOR', 1.0)}</div>
             
-            <div class="radar-column">
-                <span class="data-label" style="text-align:center; display:block; margin-bottom:10px;">Live Current (L1/L2/L3)</span>
-                <div style="display: flex; gap: 10px; align-items: center; justify-content: center; height: 110px;">
-                    <div style="flex: 1; height: 100%; display: flex; flex-direction: column; justify-content: center; text-align: center; background: #FEF2F2; border: 2px solid #FECACA; border-radius: 8px;">
-                        <div style="font-size: 10px; font-weight: 800; color: #EF4444; margin-bottom: 5px;">PHASE L1</div>
-                        <div style="font-family: 'JetBrains Mono'; font-size: 18px; font-weight: 900; color: #B91C1C;"><span id="val-i1-${m.id}">---</span><span style="font-size: 10px;">A</span></div>
-                    </div>
-                    <div style="flex: 1; height: 100%; display: flex; flex-direction: column; justify-content: center; text-align: center; background: #FFFBEB; border: 2px solid #FDE68A; border-radius: 8px;">
-                        <div style="font-size: 10px; font-weight: 800; color: #F59E0B; margin-bottom: 5px;">PHASE L2</div>
-                        <div style="font-family: 'JetBrains Mono'; font-size: 18px; font-weight: 900; color: #B45309;"><span id="val-i2-${m.id}">---</span><span style="font-size: 10px;">A</span></div>
-                    </div>
-                    <div style="flex: 1; height: 100%; display: flex; flex-direction: column; justify-content: center; text-align: center; background: #ECFDF5; border: 2px solid #A7F3D0; border-radius: 8px;">
-                        <div style="font-size: 10px; font-weight: 800; color: #10B981; margin-bottom: 5px;">PHASE L3</div>
-                        <div style="font-family: 'JetBrains Mono'; font-size: 18px; font-weight: 900; color: #047857;"><span id="val-i3-${m.id}">---</span><span style="font-size: 10px;">A</span></div>
-                    </div>
+            <div class="radar-column" style="display: flex; gap: 10px; align-items: center; justify-content: center; height: 100%;">
+                <div style="flex: 1; text-align: center; background: #FEF2F2; border: 2px solid #FECACA; padding: 15px 5px; border-radius: 8px;">
+                    <div style="font-size: 10px; font-weight: 800; color: #EF4444; margin-bottom: 5px;">PHASE L1</div>
+                    <div style="font-family: 'JetBrains Mono'; font-size: 20px; font-weight: 900; color: #B91C1C;"><span id="val-i1-${m.id}">---</span><span style="font-size: 12px;">A</span></div>
+                </div>
+                <div style="flex: 1; text-align: center; background: #FFFBEB; border: 2px solid #FDE68A; padding: 15px 5px; border-radius: 8px;">
+                    <div style="font-size: 10px; font-weight: 800; color: #F59E0B; margin-bottom: 5px;">PHASE L2</div>
+                    <div style="font-family: 'JetBrains Mono'; font-size: 20px; font-weight: 900; color: #B45309;"><span id="val-i2-${m.id}">---</span><span style="font-size: 12px;">A</span></div>
+                </div>
+                <div style="flex: 1; text-align: center; background: #ECFDF5; border: 2px solid #A7F3D0; padding: 15px 5px; border-radius: 8px;">
+                    <div style="font-size: 10px; font-weight: 800; color: #10B981; margin-bottom: 5px;">PHASE L3</div>
+                    <div style="font-family: 'JetBrains Mono'; font-size: 20px; font-weight: 900; color: #047857;"><span id="val-i3-${m.id}">---</span><span style="font-size: 12px;">A</span></div>
                 </div>
             </div>
 
             <div class="stats-column">
-                <div class="data-row"><span class="data-label">Total Energy</span><div><span class="data-value" style="color:#10B981;" id="kwh-${m.id}">---</span><span class="data-unit">kWh</span></div></div>
+                <div class="data-row"><span class="data-label">Total Energy</span><div><span class="data-value" style="color:#10B981;" id="kwh-${m.id}">---</span><span class="data-unit">MWh</span></div></div>
                 <div class="data-row"><span class="data-label">CO₂ Eq.</span><div><span class="data-value" style="color:#008FD5;" id="co2-${m.id}">---</span><span class="data-unit">Tons</span></div></div>
                 <div class="data-row" style="border:none;">
                     <span class="data-label">THD-V</span>
@@ -164,9 +161,9 @@ function getPanelHTML(m) {
         </div>
         
         <div style="display: flex; justify-content: space-around; background: #F8FAFC; padding: 12px; border-radius: 8px; margin: 15px 0; border: 1px solid #E2E8F0;">
-            <div style="text-align:center;"><span style="font-size:11px; color:#64748B; font-weight:800; text-transform:uppercase; display:block; margin-bottom:4px;">Past Month Energy</span> <span style="font-family:'JetBrains Mono'; font-size:16px; font-weight:800; color:#0F172A;" id="past-mwh-${m.id}">---</span> <span style="font-size:11px; color:#94A3B8; font-weight:700;">kWh</span></div>
+            <div style="text-align:center;"><span style="font-size:11px; color:#64748B; font-weight:800; text-transform:uppercase; display:block; margin-bottom:4px;">Past Month Energy</span> <span style="font-family:'JetBrains Mono'; font-size:16px; font-weight:800; color:#0F172A;" id="past-mwh-${m.id}">---</span> <span style="font-size:11px; color:#94A3B8; font-weight:700;">MWh</span></div>
             <div style="width: 1px; background: #E2E8F0;"></div>
-            <div style="text-align:center;"><span style="font-size:11px; color:#64748B; font-weight:800; text-transform:uppercase; display:block; margin-bottom:4px;">Current Month Energy</span> <span style="font-family:'JetBrains Mono'; font-size:16px; font-weight:800; color:#10B981;" id="curr-mwh-${m.id}">---</span> <span style="font-size:11px; color:#94A3B8; font-weight:700;">kWh</span></div>
+            <div style="text-align:center;"><span style="font-size:11px; color:#64748B; font-weight:800; text-transform:uppercase; display:block; margin-bottom:4px;">Current Month Energy</span> <span style="font-family:'JetBrains Mono'; font-size:16px; font-weight:800; color:#10B981;" id="curr-mwh-${m.id}">---</span> <span style="font-size:11px; color:#94A3B8; font-weight:700;">MWh</span></div>
             <div style="width: 1px; background: #E2E8F0;"></div>
             <div style="text-align:center;"><span style="font-size:11px; color:#64748B; font-weight:800; text-transform:uppercase; display:block; margin-bottom:4px;">Current Month Avg Load</span> <span style="font-family:'JetBrains Mono'; font-size:16px; font-weight:800; color:#008FD5;" id="curr-avg-kw-${m.id}">---</span> <span style="font-size:11px; color:#94A3B8; font-weight:700;">kW</span></div>
         </div>
@@ -201,24 +198,12 @@ document.addEventListener('DOMContentLoaded', async () => {
 function updateTHDBadge(id, val) {
     const badge = document.getElementById(`badge-thdv-${id}`);
     if (!badge) return;
+    if (val === '---' || val === 0) { badge.textContent = "NORMAL"; badge.style.color = "#059669"; badge.style.background = "#ECFDF5"; badge.style.borderColor = "#A7F3D0"; return; }
     
-    // Safety check: if val is 0, it is normal
-    if (val === 0 || isNaN(val)) { 
-        badge.textContent = "NORMAL"; 
-        badge.style.color = "#059669"; badge.style.background = "#ECFDF5"; 
-        badge.style.borderColor = "#A7F3D0"; return; 
-    }
-    
-    if (val < 3.0) { 
-        badge.textContent = "NORMAL"; 
-        badge.style.color = "#059669"; badge.style.background = "#ECFDF5"; badge.style.borderColor = "#A7F3D0";
-    } else if (val >= 3.0 && val <= 5.0) { 
-        badge.textContent = "WARNING"; 
-        badge.style.color = "#D97706"; badge.style.background = "#FFFBEB"; badge.style.borderColor = "#FDE68A";
-    } else { 
-        badge.textContent = "CRITICAL"; 
-        badge.style.color = "#DC2626"; badge.style.background = "#FEF2F2"; badge.style.borderColor = "#FECACA"; 
-    }
+    const num = parseFloat(val);
+    if (num < 3.0) { badge.textContent = "NORMAL"; badge.style.color = "#059669"; badge.style.background = "#ECFDF5"; badge.style.borderColor = "#A7F3D0";
+    } else if (num >= 3.0 && num <= 5.0) { badge.textContent = "WARNING"; badge.style.color = "#D97706"; badge.style.background = "#FFFBEB"; badge.style.borderColor = "#FDE68A";
+    } else { badge.textContent = "CRITICAL"; badge.style.color = "#DC2626"; badge.style.background = "#FEF2F2"; badge.style.borderColor = "#FECACA"; }
 }
 
 function startPolling() {
@@ -247,12 +232,9 @@ function startPolling() {
                 updateGauge(id, 'kw', newKW, 500);
                 updateGauge(id, 'pf', newPF, 1.0);
 
-                let thdv = parseFloat(d.thd_v) || 0;
-                if (thdv > 200) thdv = 0; // Hide impossible spikes
                 document.getElementById(`thdv-${id}`).textContent = thdv.toFixed(2);
                 updateTHDBadge(id, thdv);
                 
-                // SAFELY UDPATE L1/L2/L3 BOXES
                 // SAFELY UDPATE L1/L2/L3 BOXES
                 if (d.i_l1 !== undefined && d.i_l1 !== "---") {
                     animateValue(document.getElementById(`val-i1-${id}`), prev.i1, parseFloat(d.i_l1), 500, 1);
@@ -262,15 +244,15 @@ function startPolling() {
                     prev.i2 = parseFloat(d.i_l2);
                     prev.i3 = parseFloat(d.i_l3);
                 } else {
-                    if(document.getElementById(`val-i1-${id}`)) document.getElementById(`val-i1-${id}`).textContent = "---";
-                    if(document.getElementById(`val-i2-${id}`)) document.getElementById(`val-i2-${id}`).textContent = "---";
-                    if(document.getElementById(`val-i3-${id}`)) document.getElementById(`val-i3-${id}`).textContent = "---";
+                    document.getElementById(`val-i1-${id}`).textContent = "---";
+                    document.getElementById(`val-i2-${id}`).textContent = "---";
+                    document.getElementById(`val-i3-${id}`).textContent = "---";
                 }
                 
                 if (d.kwh_total && d.kwh_total !== "---") {
-                    const rawKwh = parseFloat(d.kwh_total);
-                    document.getElementById(`kwh-${id}`).textContent = rawKwh.toFixed(1);
-                    document.getElementById(`co2-${id}`).textContent = ((rawKwh / 1000) * 0.45).toFixed(2);
+                    const mwh = parseFloat(d.kwh_total) / 1000;
+                    document.getElementById(`kwh-${id}`).textContent = mwh.toFixed(2);
+                    document.getElementById(`co2-${id}`).textContent = (mwh * 0.45).toFixed(1);
                 } else {
                     document.getElementById(`kwh-${id}`).textContent = "---";
                     document.getElementById(`co2-${id}`).textContent = "---";
@@ -343,8 +325,8 @@ function renderHistoryChart() {
             if (param === 'kwh' || param === 'co2') {
                 let rawKwh = parseFloat(e.kwh || 0);
                 if (rawKwh > 100000000) rawKwh = rawKwh / 1000; 
-                // Serve raw kWh, but calculate CO2 using MWh base (kWh / 1000 * 0.45)
-                yVal = param === 'kwh' ? rawKwh : ((rawKwh / 1000) * 0.45);
+                let mwh = rawKwh / 1000;
+                yVal = param === 'kwh' ? mwh : (mwh * 0.45);
             }
             return { x: new Date(e.ts), y: yVal !== undefined ? yVal : 0 };
         });
