@@ -113,11 +113,10 @@
 
             <!-- TOP BANNER: SUMMARY METRICS -->
             <div style="display: flex; justify-content: space-around; background: #FFFFFF; padding: 20px; border-radius: 12px; margin-bottom: 25px; border: 1px solid #E2E8F0; box-shadow: 0 4px 10px rgba(0,0,0,0.02);">
-                <div style="text-align:center;"><span style="font-size:12px; color:#64748B; font-weight:800; text-transform:uppercase; display:block; margin-bottom:8px;">Past Month Energy</span> <span style="font-family:'JetBrains Mono'; font-size:24px; font-weight:800; color:#0F172A;" id="past-mwh">---</span> <span style="font-size:14px; color:#94A3B8; font-weight:700;">MWh</span></div>
+                <div style="text-align:center;"><span style="font-size:12px; color:#64748B; font-weight:800; text-transform:uppercase; display:block; margin-bottom:8px;">Past Month Energy</span> <span style="font-family:'JetBrains Mono'; font-size:24px; font-weight:800; color:#0F172A;" id="past-mwh">---</span> <span style="font-size:14px; color:#94A3B8; font-weight:700;">kWh</span></div>
                 <div style="width: 2px; background: #F1F5F9;"></div>
                 
-                <!-- REPLACED WITH TOTAL ACTIVE ENERGY -->
-                <div style="text-align:center;"><span style="font-size:12px; color:#64748B; font-weight:800; text-transform:uppercase; display:block; margin-bottom:8px;">Total Active Energy</span> <span style="font-family:'JetBrains Mono'; font-size:24px; font-weight:800; color:#10B981;" id="total-mwh">---</span> <span style="font-size:14px; color:#94A3B8; font-weight:700;">MWh</span></div>
+                <div style="text-align:center;"><span style="font-size:12px; color:#64748B; font-weight:800; text-transform:uppercase; display:block; margin-bottom:8px;">Total Active Energy</span> <span style="font-family:'JetBrains Mono'; font-size:24px; font-weight:800; color:#10B981;" id="total-mwh">---</span> <span style="font-size:14px; color:#94A3B8; font-weight:700;">kWh</span></div>
                 
                 <div style="width: 2px; background: #F1F5F9;"></div>
                 <div style="text-align:center;"><span style="font-size:12px; color:#64748B; font-weight:800; text-transform:uppercase; display:block; margin-bottom:8px;">Current Month Avg Load</span> <span style="font-family:'JetBrains Mono'; font-size:24px; font-weight:800; color:#008FD5;" id="curr-avg-kw">---</span> <span style="font-size:14px; color:#94A3B8; font-weight:700;">kW</span></div>
@@ -153,7 +152,7 @@
             <!-- UPDATED BIG BOTTOM CARD -->
             <div class="energy-card">
                 <div class="energy-label">CURRENT MONTH ENERGY (LIVE)</div>
-                <div><span class="energy-val" id="big-curr-mwh">---</span> <span class="energy-unit">MWh</span></div>
+                <div><span class="energy-val" id="big-curr-mwh">---</span> <span class="energy-unit">kWh</span></div>
             </div>
         </div>
 
@@ -161,17 +160,17 @@
         <div id="view-history" class="view-section">
             <div class="history-controls">
                 <div class="control-group">
-                    <label>PARAMETER</label>
-                    <select id="hist-param" onchange="processHistoryData()">
-                        <option value="kw">Active Power (kW)</option>
-                        <option value="v_l1">Voltage L1 (V)</option>
-                        <option value="i_l1">Current Load (A)</option>
-                        <option value="pf">Power Factor</option>
-                        <option value="thd_v">Voltage Harmonics (THD-V)</option>
-                        <option value="kwh">Total Active Energy (MWh)</option>
-                        <option value="co2">Carbon Footprint (Tons CO₂)</option>
-                    </select>
-                </div>
+                <label>PARAMETER</label>
+                <select id="hist-param" onchange="processHistoryData()">
+                    <option value="kw">Active Power (kW)</option>
+                    <option value="v_l1">Voltage L1 (V)</option>
+                    <option value="i_l1">Current Load (A)</option>
+                    <option value="pf">Power Factor</option>
+                    <option value="thd_v">Voltage Harmonics (THD-V)</option>
+                    <option value="kwh">Total Active Energy (kWh)</option>
+                    <option value="co2">Carbon Footprint (Tons CO₂)</option>
+                </select>
+            </div>
                 <div class="control-group">
                     <label>TIME RANGE</label>
                     <select id="hist-timeframe" onchange="fetchHistoryData()">
