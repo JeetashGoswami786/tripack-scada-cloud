@@ -153,7 +153,7 @@ function getPanelHTML(m) {
             </div>
 
             <div class="stats-column">
-                <div class="data-row"><span class="data-label">Total Energy</span><div><span class="data-value" style="color:#10B981;" id="kwh-${m.id}">---</span><span class="data-unit">MWh</span></div></div>
+                <div class="data-row"><span class="data-label">Total Energy</span><div><span class="data-value" style="color:#10B981;" id="kwh-${m.id}">---</span><span class="data-unit">kWh</span></div></div>
                 <div class="data-row"><span class="data-label">CO₂ Eq.</span><div><span class="data-value" style="color:#008FD5;" id="co2-${m.id}">---</span><span class="data-unit">Tons</span></div></div>
                 <div class="data-row" style="border:none;">
                     <span class="data-label">THD-V</span>
@@ -164,9 +164,9 @@ function getPanelHTML(m) {
         </div>
         
         <div style="display: flex; justify-content: space-around; background: #F8FAFC; padding: 12px; border-radius: 8px; margin: 15px 0; border: 1px solid #E2E8F0;">
-            <div style="text-align:center;"><span style="font-size:11px; color:#64748B; font-weight:800; text-transform:uppercase; display:block; margin-bottom:4px;">Past Month Energy</span> <span style="font-family:'JetBrains Mono'; font-size:16px; font-weight:800; color:#0F172A;" id="past-mwh-${m.id}">---</span> <span style="font-size:11px; color:#94A3B8; font-weight:700;">MWh</span></div>
+            <div style="text-align:center;"><span style="font-size:11px; color:#64748B; font-weight:800; text-transform:uppercase; display:block; margin-bottom:4px;">Past Month Energy</span> <span style="font-family:'JetBrains Mono'; font-size:16px; font-weight:800; color:#0F172A;" id="past-mwh-${m.id}">---</span> <span style="font-size:11px; color:#94A3B8; font-weight:700;">kWh</span></div>
             <div style="width: 1px; background: #E2E8F0;"></div>
-            <div style="text-align:center;"><span style="font-size:11px; color:#64748B; font-weight:800; text-transform:uppercase; display:block; margin-bottom:4px;">Current Month Energy</span> <span style="font-family:'JetBrains Mono'; font-size:16px; font-weight:800; color:#10B981;" id="curr-mwh-${m.id}">---</span> <span style="font-size:11px; color:#94A3B8; font-weight:700;">MWh</span></div>
+            <div style="text-align:center;"><span style="font-size:11px; color:#64748B; font-weight:800; text-transform:uppercase; display:block; margin-bottom:4px;">Current Month Energy</span> <span style="font-family:'JetBrains Mono'; font-size:16px; font-weight:800; color:#10B981;" id="curr-mwh-${m.id}">---</span> <span style="font-size:11px; color:#94A3B8; font-weight:700;">kWh</span></div>
             <div style="width: 1px; background: #E2E8F0;"></div>
             <div style="text-align:center;"><span style="font-size:11px; color:#64748B; font-weight:800; text-transform:uppercase; display:block; margin-bottom:4px;">Current Month Avg Load</span> <span style="font-family:'JetBrains Mono'; font-size:16px; font-weight:800; color:#008FD5;" id="curr-avg-kw-${m.id}">---</span> <span style="font-size:11px; color:#94A3B8; font-weight:700;">kW</span></div>
         </div>
