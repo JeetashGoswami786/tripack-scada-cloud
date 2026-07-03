@@ -62,6 +62,7 @@
             <div class="card-desc">Individual extruders, slitters, and BOPP/CPP nodes.</div>
         </div>
 
+        <!-- CARD 3: OTHER (SUBSTATIONS) -->
         <div class="portal-card" onclick="toggleZone('zone-other')">
             <div class="card-icon">🏭</div>
             <div class="card-title">Other (Substations)</div>
@@ -69,6 +70,10 @@
             
             <div class="auth-zone" id="zone-other" onclick="event.stopPropagation()">
                 <div class="substation-list">
+                    <!-- NEW LINE 3 SECTIONS -->
+                    <div class="sub-btn" onclick="openLogin('line3')">Line 3</div>
+                    <div class="sub-btn" onclick="openLogin('line3_ems')">Line 3 EMS</div>
+                    
                     <div class="sub-btn" onclick="openLogin('line4_lt1')">Line 4 - LT 01</div>
                     <div class="sub-btn" onclick="openLogin('line4_lt2')">Line 4 - LT 02</div>
                     <div class="sub-btn" onclick="openLogin('line5_sub1')">Line 5 - Sub 1</div>
