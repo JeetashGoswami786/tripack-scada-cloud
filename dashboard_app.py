@@ -307,7 +307,7 @@ async def get_monthly_stats(section_id: str):
             if max_val is None or min_val is None: return 0.0
             v_max = max_val / 1000 if max_val > 100000000 else max_val
             v_min = min_val / 1000 if min_val > 100000000 else min_val
-            return max(0, v_max - v_min) / 1000 
+            return max(0, v_max - v_min) # Now returns pure kWh!
             
         stats = {}
         for row in curr_data:
