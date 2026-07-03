@@ -134,18 +134,21 @@ function getPanelHTML(m) {
             <div class="gauge-wrap">${makeGauge(m.id, 'kw', 'POWER (kW)', 500)}</div>
             <div class="gauge-wrap">${makeGauge(m.id, 'pf', 'PWR FACTOR', 1.0)}</div>
             
-            <div class="radar-column" style="display: flex; gap: 10px; align-items: center; justify-content: center; height: 100%;">
-                <div style="flex: 1; text-align: center; background: #FEF2F2; border: 2px solid #FECACA; padding: 15px 5px; border-radius: 8px;">
-                    <div style="font-size: 10px; font-weight: 800; color: #EF4444; margin-bottom: 5px;">PHASE L1</div>
-                    <div style="font-family: 'JetBrains Mono'; font-size: 20px; font-weight: 900; color: #B91C1C;"><span id="val-i1-${m.id}">---</span><span style="font-size: 12px;">A</span></div>
-                </div>
-                <div style="flex: 1; text-align: center; background: #FFFBEB; border: 2px solid #FDE68A; padding: 15px 5px; border-radius: 8px;">
-                    <div style="font-size: 10px; font-weight: 800; color: #F59E0B; margin-bottom: 5px;">PHASE L2</div>
-                    <div style="font-family: 'JetBrains Mono'; font-size: 20px; font-weight: 900; color: #B45309;"><span id="val-i2-${m.id}">---</span><span style="font-size: 12px;">A</span></div>
-                </div>
-                <div style="flex: 1; text-align: center; background: #ECFDF5; border: 2px solid #A7F3D0; padding: 15px 5px; border-radius: 8px;">
-                    <div style="font-size: 10px; font-weight: 800; color: #10B981; margin-bottom: 5px;">PHASE L3</div>
-                    <div style="font-family: 'JetBrains Mono'; font-size: 20px; font-weight: 900; color: #047857;"><span id="val-i3-${m.id}">---</span><span style="font-size: 12px;">A</span></div>
+            <div class="radar-column">
+                <span class="data-label" style="text-align:center; display:block; margin-bottom:10px;">Live Current (L1/L2/L3)</span>
+                <div style="display: flex; gap: 10px; align-items: center; justify-content: center; height: 110px;">
+                    <div style="flex: 1; height: 100%; display: flex; flex-direction: column; justify-content: center; text-align: center; background: #FEF2F2; border: 2px solid #FECACA; border-radius: 8px;">
+                        <div style="font-size: 10px; font-weight: 800; color: #EF4444; margin-bottom: 5px;">PHASE L1</div>
+                        <div style="font-family: 'JetBrains Mono'; font-size: 18px; font-weight: 900; color: #B91C1C;"><span id="val-i1-${m.id}">---</span><span style="font-size: 10px;">A</span></div>
+                    </div>
+                    <div style="flex: 1; height: 100%; display: flex; flex-direction: column; justify-content: center; text-align: center; background: #FFFBEB; border: 2px solid #FDE68A; border-radius: 8px;">
+                        <div style="font-size: 10px; font-weight: 800; color: #F59E0B; margin-bottom: 5px;">PHASE L2</div>
+                        <div style="font-family: 'JetBrains Mono'; font-size: 18px; font-weight: 900; color: #B45309;"><span id="val-i2-${m.id}">---</span><span style="font-size: 10px;">A</span></div>
+                    </div>
+                    <div style="flex: 1; height: 100%; display: flex; flex-direction: column; justify-content: center; text-align: center; background: #ECFDF5; border: 2px solid #A7F3D0; border-radius: 8px;">
+                        <div style="font-size: 10px; font-weight: 800; color: #10B981; margin-bottom: 5px;">PHASE L3</div>
+                        <div style="font-family: 'JetBrains Mono'; font-size: 18px; font-weight: 900; color: #047857;"><span id="val-i3-${m.id}">---</span><span style="font-size: 10px;">A</span></div>
+                    </div>
                 </div>
             </div>
 
@@ -236,6 +239,7 @@ function startPolling() {
                 updateTHDBadge(id, thdv);
                 
                 // SAFELY UDPATE L1/L2/L3 BOXES
+                // SAFELY UDPATE L1/L2/L3 BOXES
                 if (d.i_l1 !== undefined && d.i_l1 !== "---") {
                     animateValue(document.getElementById(`val-i1-${id}`), prev.i1, parseFloat(d.i_l1), 500, 1);
                     animateValue(document.getElementById(`val-i2-${id}`), prev.i2, parseFloat(d.i_l2), 500, 1);
@@ -244,9 +248,9 @@ function startPolling() {
                     prev.i2 = parseFloat(d.i_l2);
                     prev.i3 = parseFloat(d.i_l3);
                 } else {
-                    document.getElementById(`val-i1-${id}`).textContent = "---";
-                    document.getElementById(`val-i2-${id}`).textContent = "---";
-                    document.getElementById(`val-i3-${id}`).textContent = "---";
+                    if(document.getElementById(`val-i1-${id}`)) document.getElementById(`val-i1-${id}`).textContent = "---";
+                    if(document.getElementById(`val-i2-${id}`)) document.getElementById(`val-i2-${id}`).textContent = "---";
+                    if(document.getElementById(`val-i3-${id}`)) document.getElementById(`val-i3-${id}`).textContent = "---";
                 }
                 
                 if (d.kwh_total && d.kwh_total !== "---") {
