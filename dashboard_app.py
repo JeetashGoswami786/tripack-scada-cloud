@@ -110,7 +110,7 @@ def init_server():
 # ==========================================
 @app.get("/")
 async def serve_hub(request: Request):
-    return templates.TemplateResponse("hub.html", {"request": request, "sections": SECTIONS})
+    return templates.TemplateResponse(request=request, name="hub.html", context={"sections": SECTIONS})
 
 @app.post("/login/{section_id}")
 async def login_submit(request: Request, section_id: str, password: str = Form(...)):
@@ -132,22 +132,25 @@ async def logout(request: Request):
 async def serve_dashboard(request: Request, section_id: str):
     if section_id not in SECTIONS or section_id not in request.session.get("authorized", []):
         return RedirectResponse(url="/", status_code=status.HTTP_303_SEE_OTHER)
-    return templates.TemplateResponse("index.html", {"request": request, "section_id": section_id, "section_name": SECTIONS[section_id]["name"]})
+    return templates.TemplateResponse(request=request, name="index.html", context={"section_id": section_id, "section_name": SECTIONS[section_id]["name"]})
 
 @app.get("/incoming_hub")
 async def serve_incoming_hub(request: Request):
-    # This explicit dictionary format prevents the 500 error
-    return templates.TemplateResponse("machine_hub.html", {
-        "request": request, "machines": MAIN_INCOMING, 
-        "hub_title": "Main Incoming Network", "hub_subtitle": "TIER 2 ENCRYPTED TELEMETRY"
-    })
+    # EXPLICIT KWARGS FIXES THE 500 INTERNAL SERVER ERROR
+    return templates.TemplateResponse(
+        request=request, 
+        name="machine_hub.html", 
+        context={"machines": MAIN_INCOMING, "hub_title": "Main Incoming Network", "hub_subtitle": "TIER 2 ENCRYPTED TELEMETRY"}
+    )
 
 @app.get("/machine_hub")
 async def serve_machine_hub(request: Request):
-    return templates.TemplateResponse("machine_hub.html", {
-        "request": request, "machines": INDIVIDUAL_MACHINES, 
-        "hub_title": "Machine Directory", "hub_subtitle": "ISOLATED NODES & EXTRUDERS"
-    })
+    # EXPLICIT KWARGS FIXES THE 500 INTERNAL SERVER ERROR
+    return templates.TemplateResponse(
+        request=request, 
+        name="machine_hub.html", 
+        context={"machines": INDIVIDUAL_MACHINES, "hub_title": "Machine Directory", "hub_subtitle": "ISOLATED NODES & EXTRUDERS"}
+    )
 
 @app.post("/login_machine/{machine_id}")
 async def login_machine(request: Request, machine_id: str, password: str = Form(...)):
@@ -168,7 +171,7 @@ async def serve_isolated(request: Request, machine_id: str):
         is_incoming = machine_id in MAIN_INCOMING
         return RedirectResponse(url="/incoming_hub" if is_incoming else "/machine_hub", status_code=status.HTTP_303_SEE_OTHER)
     m = MAIN_INCOMING.get(machine_id) or INDIVIDUAL_MACHINES.get(machine_id)
-    return templates.TemplateResponse("single_machine.html", {"request": request, "machine_id": machine_id, "machine_name": m["name"]})
+    return templates.TemplateResponse(request=request, name="single_machine.html", context={"machine_id": machine_id, "machine_name": m["name"]})
 
 # ==========================================
 # --- DATA APIs ---
