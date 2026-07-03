@@ -1,0 +1,23 @@
+[
+    {"id": 2, "name": "INCOMING FEEDER 1 FOR LINE-3"},
+    {"id": 1, "name": "INCOMING FEEDER 2 FOR LINE 3"},
+    {"id": 3, "name": "8Q1 DP 701 (LINE-3)"},
+    {"id": 4, "name": "9Q1 DP 301 (LINE-3)"},
+    {"id": 5, "name": "EREMA-02 (Recycling Machine)"},
+    {"id": 6, "name": "11 Q1 VS-4 (Ventilation - 4)"},
+    {"id": 7, "name": "12Q1 DP111 (EXT- M2 ) LINE-3"},
+    {"id": 8, "name": "13Q1 DP 121(EXT-A) LINE -3"},
+    {"id": 9, "name": "14Q1 DP141 (EXT-B) LINE-3"},
+    {"id": 10, "name": "15Q1 DP101 (EXT-M1 Slave-1) LINE-3"},
+    {"id": 11, "name": "16Q1 DP101 (EXT-M1 Slave-2) LINE-3"},
+    {"id": 12, "name": "17 Q1 DP101 (EXT-M1 Master) LINE-3"},
+    {"id": 13, "name": "24Q1 HP 706( LINE-3)"},
+    {"id": 26, "name": "York Chiller"},
+    {"id": 53, "name": "Carrier /YORK Chiller No 1"},
+    {"id": 33, "name": "CP 801 5Q1 (LINE-3)"},
+    {"id": 35, "name": "3Q1 (TP101) EXT-101 (LINE-3)"},
+    {"id": 36, "name": "4Q1 (TP 101) EXT-11 (LINE-3)"},
+    {"id": 40, "name": "8Q1 MCC Turbo Blower( LINE-3)"},
+    {"id": 51, "name": "RO Plant No# 1"},
+    {"id": 98, "name": "CO-Extruder 3/4-Line-4"}
+]
