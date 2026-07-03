@@ -329,8 +329,8 @@ function renderHistoryChart() {
             if (param === 'kwh' || param === 'co2') {
                 let rawKwh = parseFloat(e.kwh || 0);
                 if (rawKwh > 100000000) rawKwh = rawKwh / 1000; 
-                let mwh = rawKwh / 1000;
-                yVal = param === 'kwh' ? mwh : (mwh * 0.45);
+                // Serve raw kWh, but calculate CO2 using MWh base (kWh / 1000 * 0.45)
+                yVal = param === 'kwh' ? rawKwh : ((rawKwh / 1000) * 0.45);
             }
             return { x: new Date(e.ts), y: yVal !== undefined ? yVal : 0 };
         });
