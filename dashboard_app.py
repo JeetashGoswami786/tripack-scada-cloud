@@ -48,11 +48,9 @@ MAIN_INCOMING = {
     "inc_l3_feeder_1": {"name": "INCOMING L3 Feeder 1", "password": "machine13"},
     "inc_l3_feeder_2": {"name": "INCOMING L3 Feeder 2", "password": "machine14"},
     "inc_cpp_met": {"name": "INCOMING CPP-1/CPP-2/CCP-MET", "password": "machine15"},
-    # ADDED CPP PLANT FEEDERS
-    "inc_cpp2_f1": {"name": "CPP2 Plant Feeder-1", "password": "machine16"},
-    "inc_cpp2_f2": {"name": "CPP2 Plant Feeder-2", "password": "machine17"},
-    "inc_cpp1_f1": {"name": "CPP1 Plant Feeder-1", "password": "machine18"},
-    "inc_cpp1_f2": {"name": "CPP1 Plant Feeder-2", "password": "machine19"}
+    # CONSOLIDATED CPP PLANTS
+    "inc_cpp2": {"name": "CPP2 Plant", "password": "machine16"},
+    "inc_cpp1": {"name": "CPP1 Plant", "password": "machine18"}
 }
 
 INDIVIDUAL_MACHINES = {
@@ -60,7 +58,7 @@ INDIVIDUAL_MACHINES = {
     "m_ps7": {"name": "PS 7 (BOPP)", "password": "machine17"},
     "m_k52": {"name": "K5 2 (BOPP)", "password": "machine18"},
     "m_ss10": {"name": "SS-10", "password": "machine19"},
-    "m_k54": {"name": "K5 4 (BOPP)", "password": "machine20"},
+    "m_k5_expert": {"name": "K-5 Expert", "password": "machine20"}, # REPLACED K5 4 WITH K-5 EXPERT
     "m_ss14": {"name": "SS-14", "password": "machine21"},
     "m_erema3": {"name": "Erema 3", "password": "machine22"},
     "m_erema4": {"name": "Erema 4", "password": "machine23"},
@@ -76,7 +74,6 @@ INDIVIDUAL_MACHINES = {
     "m_ps4": {"name": "PS 4 (CPP)", "password": "machine33"},
     "m_k53": {"name": "K5 3 (CPP)", "password": "machine34"},
     "m_ps6": {"name": "PS 6 (CPP)", "password": "machine35"},
-    # REMOVED SH-11 (L4) AND ADDED TAPE LINE MACHINES
     "m_tape_line": {"name": "Tape Line Machine", "password": "machine37"},
     "m_tape_slitter": {"name": "Tape Machine Slitter", "password": "machine38"}
 }
