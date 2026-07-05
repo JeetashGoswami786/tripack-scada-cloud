@@ -31,6 +31,7 @@ SECTIONS = {
 }
 
 # --- TIER 2: ISOLATED DIRECTORIES ---
+# --- TIER 2: ISOLATED DIRECTORIES ---
 MAIN_INCOMING = {
     "inc_ext_delta_l4": {"name": "INCOMING Ext Delta Line 4", "password": "machine1"},
     "inc_l4_feeder_1": {"name": "INCOMING L4 Feeder 1", "password": "machine2"},
@@ -46,7 +47,12 @@ MAIN_INCOMING = {
     "inc_qm3_lvp_06": {"name": "INCOMING QM3 LVP-06", "password": "machine12"},
     "inc_l3_feeder_1": {"name": "INCOMING L3 Feeder 1", "password": "machine13"},
     "inc_l3_feeder_2": {"name": "INCOMING L3 Feeder 2", "password": "machine14"},
-    "inc_cpp_met": {"name": "INCOMING CPP-1/CPP-2/CCP-MET", "password": "machine15"}
+    "inc_cpp_met": {"name": "INCOMING CPP-1/CPP-2/CCP-MET", "password": "machine15"},
+    # ADDED CPP PLANT FEEDERS
+    "inc_cpp2_f1": {"name": "CPP2 Plant Feeder-1", "password": "machine16"},
+    "inc_cpp2_f2": {"name": "CPP2 Plant Feeder-2", "password": "machine17"},
+    "inc_cpp1_f1": {"name": "CPP1 Plant Feeder-1", "password": "machine18"},
+    "inc_cpp1_f2": {"name": "CPP1 Plant Feeder-2", "password": "machine19"}
 }
 
 INDIVIDUAL_MACHINES = {
@@ -70,7 +76,9 @@ INDIVIDUAL_MACHINES = {
     "m_ps4": {"name": "PS 4 (CPP)", "password": "machine33"},
     "m_k53": {"name": "K5 3 (CPP)", "password": "machine34"},
     "m_ps6": {"name": "PS 6 (CPP)", "password": "machine35"},
-    "m_sh11": {"name": "SH-11 (L4)", "password": "machine36"}
+    # REMOVED SH-11 (L4) AND ADDED TAPE LINE MACHINES
+    "m_tape_line": {"name": "Tape Line Machine", "password": "machine37"},
+    "m_tape_slitter": {"name": "Tape Machine Slitter", "password": "machine38"}
 }
 
 LIVE_DATA = {sec_id: {} for sec_id in SECTIONS.keys()}
