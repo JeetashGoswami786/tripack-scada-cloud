@@ -299,10 +299,25 @@ async def get_monthly_stats(section_id: str):
         conn = get_db_connection()
         cur = conn.cursor(cursor_factory=RealDictCursor)
         
-        cur.execute("SELECT machine_id, MAX(kwh) as max_kwh, MIN(kwh) as min_kwh, AVG(kw) AS current_avg_kw FROM scada_history WHERE section_id = %s AND timestamp >= DATE_TRUNC('month', CURRENT_DATE) GROUP BY machine_id", (section_id,))
+        # CURRENT MONTH: Starts strictly at 7:00 AM on the 1st. Ignores 0 readings.
+        cur.execute("""
+            SELECT machine_id, MAX(kwh) as max_kwh, MIN(kwh) as min_kwh, AVG(kw) AS current_avg_kw 
+            FROM scada_history 
+            WHERE section_id = %s AND kwh > 0 
+            AND timestamp >= DATE_TRUNC('month', CURRENT_DATE) + INTERVAL '7 hours' 
+            GROUP BY machine_id
+        """, (section_id,))
         curr_data = cur.fetchall()
         
-        cur.execute("SELECT machine_id, MAX(kwh) as max_kwh, MIN(kwh) as min_kwh FROM scada_history WHERE section_id = %s AND timestamp >= DATE_TRUNC('month', CURRENT_DATE - INTERVAL '1 month') AND timestamp < DATE_TRUNC('month', CURRENT_DATE) GROUP BY machine_id", (section_id,))
+        # PAST MONTH: Previous month 1st at 7:00 AM to Current month 1st at 7:00 AM. Ignores 0 readings.
+        cur.execute("""
+            SELECT machine_id, MAX(kwh) as max_kwh, MIN(kwh) as min_kwh 
+            FROM scada_history 
+            WHERE section_id = %s AND kwh > 0 
+            AND timestamp >= DATE_TRUNC('month', CURRENT_DATE - INTERVAL '1 month') + INTERVAL '7 hours' 
+            AND timestamp < DATE_TRUNC('month', CURRENT_DATE) + INTERVAL '7 hours' 
+            GROUP BY machine_id
+        """, (section_id,))
         past_data = cur.fetchall()
         
         cur.close()
@@ -312,16 +327,26 @@ async def get_monthly_stats(section_id: str):
             if max_val is None or min_val is None: return 0.0
             v_max = max_val / 1000 if max_val > 100000000 else max_val
             v_min = min_val / 1000 if min_val > 100000000 else min_val
-            return max(0, v_max - v_min) # Now returns pure kWh!
+            return max(0, v_max - v_min) # Returns pure kWh
             
         stats = {}
         for row in curr_data:
             m_id = str(row['machine_id'])
-            stats[m_id] = { "current_month_energy": round(safe_energy(row['max_kwh'], row['min_kwh']), 2), "current_month_avg_kw": round(row['current_avg_kw'] or 0, 2), "past_month_energy": 0.0 }
+            stats[m_id] = { 
+                "current_month_energy": round(safe_energy(row['max_kwh'], row['min_kwh']), 2), 
+                "current_month_avg_kw": round(row['current_avg_kw'] or 0, 2), 
+                "past_month_energy": 0.0 
+            }
         for row in past_data:
             m_id = str(row['machine_id'])
-            if m_id in stats: stats[m_id]["past_month_energy"] = round(safe_energy(row['max_kwh'], row['min_kwh']), 2)
-            else: stats[m_id] = { "current_month_energy": 0.0, "current_month_avg_kw": 0.0, "past_month_energy": round(safe_energy(row['max_kwh'], row['min_kwh']), 2) }
+            if m_id in stats: 
+                stats[m_id]["past_month_energy"] = round(safe_energy(row['max_kwh'], row['min_kwh']), 2)
+            else: 
+                stats[m_id] = { 
+                    "current_month_energy": 0.0, 
+                    "current_month_avg_kw": 0.0, 
+                    "past_month_energy": round(safe_energy(row['max_kwh'], row['min_kwh']), 2) 
+                }
         return stats
     except Exception as e: return {}
 
