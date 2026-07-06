@@ -113,9 +113,19 @@ def init_server():
 # ==========================================
 # --- CRASH-FREE ROUTING ---
 # ==========================================
+# ==========================================
+# --- CRASH-FREE ROUTING ---
+# ==========================================
 @app.get("/")
 async def serve_hub(request: Request):
-    return templates.TemplateResponse(request=request, name="hub.html", context={"sections": SECTIONS})
+    return templates.TemplateResponse(
+        request=request, 
+        name="hub.html", 
+        context={
+            "sections": SECTIONS,
+            "individual_machines": INDIVIDUAL_MACHINES
+        }
+    )
 
 @app.post("/login/{section_id}")
 async def login_submit(request: Request, section_id: str, password: str = Form(...)):
