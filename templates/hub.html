@@ -12,7 +12,6 @@
         .header h1 { font-size: 32px; font-weight: 900; margin: 0; color: #0F172A; text-transform: uppercase; letter-spacing: 1px; }
         .header p { color: #64748B; font-weight: 600; margin-top: 8px; }
         
-        /* Added align-items: start so cards don't stretch when dropdown opens */
         .hub-container { display: grid; grid-template-columns: repeat(3, 1fr); gap: 30px; margin-top: 50px; max-width: 1000px; width: 100%; padding: 0 20px; align-items: start; }
         
         .portal-card { background: white; border-radius: 16px; padding: 40px 30px; text-align: center; border: 1px solid #E2E8F0; box-shadow: 0 10px 25px rgba(0,0,0,0.03); transition: 0.3s; cursor: pointer; position: relative; overflow: hidden; }
@@ -29,11 +28,6 @@
         .auth-zone.active { display: block; animation: slideDown 0.3s ease; }
         @keyframes slideDown { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
         
-        input[type="password"] { width: 100%; padding: 12px; border: 2px solid #E2E8F0; border-radius: 8px; font-family: 'Inter'; font-weight: 600; text-align: center; outline: none; margin-bottom: 10px; }
-        input[type="password"]:focus { border-color: #10B981; }
-        .btn-submit { background: #10B981; color: white; border: none; padding: 12px; width: 100%; border-radius: 8px; font-weight: 800; cursor: pointer; text-transform: uppercase; transition: 0.2s; }
-        .btn-submit:hover { background: #059669; }
-
         /* Scrollable Lists for Dropdowns */
         .substation-list { display: flex; flex-direction: column; gap: 10px; margin-top: 20px; max-height: 320px; overflow-y: auto; padding-right: 5px; }
         
@@ -56,14 +50,22 @@
     </div>
 
     <div class="hub-container">
-        <!-- CARD 1: MAIN INCOMING -->
-        <div class="portal-card" onclick="window.location.href='/incoming_hub'">
+        <!-- CARD 1: MAIN INCOMING (NOW A DROPDOWN) -->
+        <div class="portal-card" onclick="toggleZone('zone-incoming')">
             <div class="card-icon">⚡</div>
             <div class="card-title">Main Incoming</div>
             <div class="card-desc">Utility feeders and external grid synchronizations.</div>
+            
+            <div class="auth-zone" id="zone-incoming" onclick="event.stopPropagation()">
+                <div class="substation-list">
+                    {% for m_id, m_data in main_incoming.items() %}
+                        <div class="sub-btn" onclick="openMachineLogin('{{ m_id }}')">{{ m_data.name }}</div>
+                    {% endfor %}
+                </div>
+            </div>
         </div>
 
-        <!-- CARD 2: ISOLATED MACHINES DIRECTORY (UPDATED TO DROPDOWN) -->
+        <!-- CARD 2: ISOLATED MACHINES DIRECTORY -->
         <div class="portal-card" onclick="toggleZone('zone-machines')">
             <div class="card-icon">⚙️</div>
             <div class="card-title">Machine Directory</div>
@@ -71,7 +73,6 @@
             
             <div class="auth-zone" id="zone-machines" onclick="event.stopPropagation()">
                 <div class="substation-list">
-                    <!-- Dynamically inject all machines from Python dictionary -->
                     {% for m_id, m_data in individual_machines.items() %}
                         <div class="sub-btn" onclick="openMachineLogin('{{ m_id }}')">{{ m_data.name }}</div>
                     {% endfor %}
@@ -104,6 +105,16 @@
     </form>
 
     <script>
+        // Check if the server rejected the password and display an alert
+        window.onload = () => {
+            const urlParams = new URLSearchParams(window.location.search);
+            if (urlParams.get('error') === '1') {
+                alert("Incorrect Password! Access Denied.");
+                // Clean the URL so the alert doesn't pop up again if they refresh
+                window.history.replaceState({}, document.title, "/");
+            }
+        };
+
         function toggleZone(id) {
             document.querySelectorAll('.auth-zone').forEach(el => {
                 if(el.id !== id) el.classList.remove('active');
@@ -122,9 +133,9 @@
             }
         }
 
-        // Individual Machine Login Route (NEW)
+        // Individual Machine & Main Incoming Login Route
         function openMachineLogin(machineId) {
-            const pwd = prompt("Enter Password for this Machine:");
+            const pwd = prompt("Enter Password for this Node:");
             if (pwd) {
                 const form = document.getElementById('hidden-login-form');
                 form.action = `/login_machine/${machineId}`;
