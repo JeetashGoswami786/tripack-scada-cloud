@@ -116,6 +116,9 @@ def init_server():
 # ==========================================
 # --- CRASH-FREE ROUTING ---
 # ==========================================
+# ==========================================
+# --- CRASH-FREE ROUTING ---
+# ==========================================
 @app.get("/")
 async def serve_hub(request: Request):
     return templates.TemplateResponse(
@@ -123,7 +126,8 @@ async def serve_hub(request: Request):
         name="hub.html", 
         context={
             "sections": SECTIONS,
-            "individual_machines": INDIVIDUAL_MACHINES
+            "individual_machines": INDIVIDUAL_MACHINES,
+            "main_incoming": MAIN_INCOMING # Added to dynamically build the Incoming dropdown
         }
     )
 
@@ -149,27 +153,8 @@ async def serve_dashboard(request: Request, section_id: str):
         return RedirectResponse(url="/", status_code=status.HTTP_303_SEE_OTHER)
     return templates.TemplateResponse(request=request, name="index.html", context={"section_id": section_id, "section_name": SECTIONS[section_id]["name"]})
 
-@app.get("/incoming_hub")
-async def serve_incoming_hub(request: Request):
-    # EXPLICIT KWARGS FIXES THE 500 INTERNAL SERVER ERROR
-    return templates.TemplateResponse(
-        request=request, 
-        name="machine_hub.html", 
-        context={"machines": MAIN_INCOMING, "hub_title": "Main Incoming Network", "hub_subtitle": "TIER 2 ENCRYPTED TELEMETRY"}
-    )
-
-@app.get("/machine_hub")
-async def serve_machine_hub(request: Request):
-    # EXPLICIT KWARGS FIXES THE 500 INTERNAL SERVER ERROR
-    return templates.TemplateResponse(
-        request=request, 
-        name="machine_hub.html", 
-        context={"machines": INDIVIDUAL_MACHINES, "hub_title": "Machine Directory", "hub_subtitle": "ISOLATED NODES & EXTRUDERS"}
-    )
-
 @app.post("/login_machine/{machine_id}")
 async def login_machine(request: Request, machine_id: str, password: str = Form(...)):
-    is_incoming = machine_id in MAIN_INCOMING
     m = MAIN_INCOMING.get(machine_id) or INDIVIDUAL_MACHINES.get(machine_id)
     if m and password.strip() == m["password"]:
         m_auth_list = request.session.get("machine_auth", [])
@@ -177,17 +162,16 @@ async def login_machine(request: Request, machine_id: str, password: str = Form(
             m_auth_list.append(machine_id)
             request.session["machine_auth"] = m_auth_list
         return RedirectResponse(url=f"/isolated/{machine_id}", status_code=status.HTTP_303_SEE_OTHER)
-    fallback_url = "/incoming_hub?error=1" if is_incoming else "/machine_hub?error=1"
-    return RedirectResponse(url=fallback_url, status_code=status.HTTP_303_SEE_OTHER)
+    # If the password is wrong, redirect back to the Hub with an error flag
+    return RedirectResponse(url="/?error=1", status_code=status.HTTP_303_SEE_OTHER)
 
 @app.get("/isolated/{machine_id}")
 async def serve_isolated(request: Request, machine_id: str):
     if machine_id not in request.session.get("machine_auth", []):
-        is_incoming = machine_id in MAIN_INCOMING
-        return RedirectResponse(url="/incoming_hub" if is_incoming else "/machine_hub", status_code=status.HTTP_303_SEE_OTHER)
+        # If unauthorized, return directly to the Master Hub
+        return RedirectResponse(url="/", status_code=status.HTTP_303_SEE_OTHER)
     m = MAIN_INCOMING.get(machine_id) or INDIVIDUAL_MACHINES.get(machine_id)
     return templates.TemplateResponse(request=request, name="single_machine.html", context={"machine_id": machine_id, "machine_name": m["name"]})
-
 # ==========================================
 # --- DATA APIs ---
 # ==========================================
