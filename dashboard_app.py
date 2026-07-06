@@ -32,29 +32,22 @@ SECTIONS = {
 
 # --- TIER 2: ISOLATED DIRECTORIES ---
 # --- TIER 2: ISOLATED DIRECTORIES ---
-# --- TIER 2: ISOLATED DIRECTORIES ---
 MAIN_INCOMING = {
     "inc_ext_delta_l4": {"name": "INCOMING Ext Delta Line 4", "password": "machine1"},
     "inc_l4_feeder_1": {"name": "INCOMING L4 Feeder 1", "password": "machine2"},
     "inc_ext_star_l4": {"name": "INCOMING Ext Star Line 4", "password": "machine3"},
     "inc_l4_feeder_2": {"name": "INCOMING L4 Feeder 2", "password": "machine4"},
-    
-    "inc_qm2_lvp_03": {"name": "Line5 LT1 Feeder 3 (QM2)", "password": "machine5"},
-    "inc_qm3_lvp_01": {"name": "Line5 LT1 Feeder 1 (QM3)", "password": "machine6"},
-    "inc_qm1_f12_lvp_02_b": {"name": "Line5 LT1 Feeder 2 Ext Delta (QM1 F12)", "password": "machine7"},
-    "inc_qm1_f13_lvp_02_a": {"name": "Line5 LT1 Feeder 2 Ext Star (QM1 F13)", "password": "machine8"},
-    "inc_qm1_lvp_04": {"name": "Line5 LT2 Feeder 4 (QM1)", "password": "machine9"},
-    "inc_qm3_lvp_05": {"name": "Line5 LT2 Feeder 5 (QM3)", "password": "machine10"},
-    "inc_qm1_lvp_07": {"name": "Line5 LT3 Feeder 7 (QM1)", "password": "machine11"},
-    "inc_qm3_lvp_06": {"name": "Line5 LT3 Feeder 6 (QM3)", "password": "machine12"},
-    
-    "inc_l3_feeder_1": {"name": "Line3 Feeder 1 (TR1)", "password": "machine13"},
-    "inc_l3_feeder_2": {"name": "Line3 Feeder 2 (TR2)", "password": "machine14"},
-    "inc_cpp_met": {"name": "Line3 Feeder 3 (CPP)", "password": "machine15"},
-    
-    # CONSOLIDATED CPP PLANTS
-    "inc_cpp2": {"name": "CPP2 Plant", "password": "machine16"},
-    "inc_cpp1": {"name": "CPP1 Plant", "password": "machine18"}
+    "inc_qm2_lvp_03": {"name": "INCOMING QM2 LVP-03", "password": "machine5"},
+    "inc_qm3_lvp_01": {"name": "INCOMING QM3 LVP-01", "password": "machine6"},
+    "inc_qm1_f12_lvp_02_b": {"name": "INCOMING QM1 F12 LVP-02 B", "password": "machine7"},
+    "inc_qm1_f13_lvp_02_a": {"name": "INCOMING QM1 F13 LVP-02 A", "password": "machine8"},
+    "inc_qm1_lvp_04": {"name": "INCOMING QM1 LVP-04", "password": "machine9"},
+    "inc_qm3_lvp_05": {"name": "INCOMING QM3 LVP-05", "password": "machine10"},
+    "inc_qm1_lvp_07": {"name": "INCOMING QM1 LVP-07", "password": "machine11"},
+    "inc_qm3_lvp_06": {"name": "INCOMING QM3 LVP-06", "password": "machine12"},
+    "inc_l3_feeder_1": {"name": "INCOMING L3 Feeder 1", "password": "machine13"},
+    "inc_l3_feeder_2": {"name": "INCOMING L3 Feeder 2", "password": "machine14"},
+    "inc_cpp_met": {"name": "INCOMING CPP-1/CPP-2/CCP-MET", "password": "machine15"}
 }
 
 INDIVIDUAL_MACHINES = {
@@ -62,7 +55,7 @@ INDIVIDUAL_MACHINES = {
     "m_ps7": {"name": "PS 7 (BOPP)", "password": "machine17"},
     "m_k52": {"name": "K5 2 (BOPP)", "password": "machine18"},
     "m_ss10": {"name": "SS-10", "password": "machine19"},
-    "m_k5_expert": {"name": "K-5 Expert", "password": "machine20"}, # REPLACED K5 4 WITH K-5 EXPERT
+    "m_k5_expert": {"name": "K-5 Expert", "password": "machine20"}, 
     "m_ss14": {"name": "SS-14", "password": "machine21"},
     "m_erema3": {"name": "Erema 3", "password": "machine22"},
     "m_erema4": {"name": "Erema 4", "password": "machine23"},
@@ -72,8 +65,11 @@ INDIVIDUAL_MACHINES = {
     "m_ss09": {"name": "SS-09", "password": "machine27"},
     "m_ss11": {"name": "SS-11", "password": "machine28"},
     "m_ss08": {"name": "SS-08", "password": "machine29"},
-    "m_cpp1": {"name": "CPP 1", "password": "machine30"},
-    "m_cpp2": {"name": "CPP 2", "password": "machine31"},
+    
+    # NEW SUMMED PLANTS SHIFTED TO MACHINE DIRECTORY
+    "m_cpp1": {"name": "CPP1 Plant", "password": "machine30"},
+    "m_cpp2": {"name": "CPP2 Plant", "password": "machine31"},
+    
     "m_k51": {"name": "K5 1 (CPP)", "password": "machine32"},
     "m_ps4": {"name": "PS 4 (CPP)", "password": "machine33"},
     "m_k53": {"name": "K5 3 (CPP)", "password": "machine34"},
