@@ -12,7 +12,8 @@
         .header h1 { font-size: 32px; font-weight: 900; margin: 0; color: #0F172A; text-transform: uppercase; letter-spacing: 1px; }
         .header p { color: #64748B; font-weight: 600; margin-top: 8px; }
         
-        .hub-container { display: grid; grid-template-columns: repeat(3, 1fr); gap: 30px; margin-top: 50px; max-width: 1000px; width: 100%; padding: 0 20px; }
+        /* Added align-items: start so cards don't stretch when dropdown opens */
+        .hub-container { display: grid; grid-template-columns: repeat(3, 1fr); gap: 30px; margin-top: 50px; max-width: 1000px; width: 100%; padding: 0 20px; align-items: start; }
         
         .portal-card { background: white; border-radius: 16px; padding: 40px 30px; text-align: center; border: 1px solid #E2E8F0; box-shadow: 0 10px 25px rgba(0,0,0,0.03); transition: 0.3s; cursor: pointer; position: relative; overflow: hidden; }
         .portal-card:hover { transform: translateY(-5px); box-shadow: 0 20px 40px rgba(0,143,213,0.1); border-color: #008FD5; }
@@ -33,9 +34,16 @@
         .btn-submit { background: #10B981; color: white; border: none; padding: 12px; width: 100%; border-radius: 8px; font-weight: 800; cursor: pointer; text-transform: uppercase; transition: 0.2s; }
         .btn-submit:hover { background: #059669; }
 
-        /* Other Substations List */
-        .substation-list { display: flex; flex-direction: column; gap: 10px; margin-top: 20px; }
-        .sub-btn { background: #F8FAFC; border: 2px solid #E2E8F0; padding: 12px; border-radius: 8px; color: #0F172A; font-weight: 800; cursor: pointer; transition: 0.2s; text-align: center; display: block; text-decoration: none; }
+        /* Scrollable Lists for Dropdowns */
+        .substation-list { display: flex; flex-direction: column; gap: 10px; margin-top: 20px; max-height: 320px; overflow-y: auto; padding-right: 5px; }
+        
+        /* Custom sleek scrollbar */
+        .substation-list::-webkit-scrollbar { width: 6px; }
+        .substation-list::-webkit-scrollbar-track { background: #F8FAFC; border-radius: 4px; }
+        .substation-list::-webkit-scrollbar-thumb { background: #CBD5E1; border-radius: 4px; }
+        .substation-list::-webkit-scrollbar-thumb:hover { background: #94A3B8; }
+
+        .sub-btn { background: #F8FAFC; border: 2px solid #E2E8F0; padding: 12px; border-radius: 8px; color: #0F172A; font-weight: 800; cursor: pointer; transition: 0.2s; text-align: center; display: block; text-decoration: none; font-size: 14px; }
         .sub-btn:hover { background: #008FD5; color: white; border-color: #008FD5; }
     </style>
 </head>
@@ -55,11 +63,20 @@
             <div class="card-desc">Utility feeders and external grid synchronizations.</div>
         </div>
 
-        <!-- CARD 2: ISOLATED MACHINES DIRECTORY -->
-        <div class="portal-card" onclick="window.location.href='/machine_hub'">
+        <!-- CARD 2: ISOLATED MACHINES DIRECTORY (UPDATED TO DROPDOWN) -->
+        <div class="portal-card" onclick="toggleZone('zone-machines')">
             <div class="card-icon">⚙️</div>
             <div class="card-title">Machine Directory</div>
             <div class="card-desc">Individual extruders, slitters, and BOPP/CPP nodes.</div>
+            
+            <div class="auth-zone" id="zone-machines" onclick="event.stopPropagation()">
+                <div class="substation-list">
+                    <!-- Dynamically inject all machines from Python dictionary -->
+                    {% for m_id, m_data in individual_machines.items() %}
+                        <div class="sub-btn" onclick="openMachineLogin('{{ m_id }}')">{{ m_data.name }}</div>
+                    {% endfor %}
+                </div>
+            </div>
         </div>
 
         <!-- CARD 3: OTHER (SUBSTATIONS) -->
@@ -70,10 +87,8 @@
             
             <div class="auth-zone" id="zone-other" onclick="event.stopPropagation()">
                 <div class="substation-list">
-                    <!-- NEW LINE 3 SECTIONS -->
                     <div class="sub-btn" onclick="openLogin('line3')">Line 3</div>
                     <div class="sub-btn" onclick="openLogin('line3_ems')">Line 3 EMS</div>
-                    
                     <div class="sub-btn" onclick="openLogin('line4_lt1')">Line 4 - LT 01</div>
                     <div class="sub-btn" onclick="openLogin('line4_lt2')">Line 4 - LT 02</div>
                     <div class="sub-btn" onclick="openLogin('line5_sub1')">Line 5 - Sub 1</div>
@@ -96,11 +111,23 @@
             document.getElementById(id).classList.toggle('active');
         }
 
+        // Substation Login Route
         function openLogin(sectionId) {
             const pwd = prompt("Enter Password for this Substation:");
             if (pwd) {
                 const form = document.getElementById('hidden-login-form');
                 form.action = `/login/${sectionId}`;
+                document.getElementById('hidden-password').value = pwd;
+                form.submit();
+            }
+        }
+
+        // Individual Machine Login Route (NEW)
+        function openMachineLogin(machineId) {
+            const pwd = prompt("Enter Password for this Machine:");
+            if (pwd) {
+                const form = document.getElementById('hidden-login-form');
+                form.action = `/login_machine/${machineId}`;
                 document.getElementById('hidden-password').value = pwd;
                 form.submit();
             }
