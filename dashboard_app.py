@@ -31,24 +31,30 @@ SECTIONS = {
 }
 
 # --- TIER 2: ISOLATED DIRECTORIES ---
-# --- TIER 2: ISOLATED DIRECTORIES ---
 MAIN_INCOMING = {
+    # Line 4 Feeders (Kept as Original)
     "inc_ext_delta_l4": {"name": "INCOMING Ext Delta Line 4", "password": "machine1"},
     "inc_l4_feeder_1": {"name": "INCOMING L4 Feeder 1", "password": "machine2"},
     "inc_ext_star_l4": {"name": "INCOMING Ext Star Line 4", "password": "machine3"},
     "inc_l4_feeder_2": {"name": "INCOMING L4 Feeder 2", "password": "machine4"},
-    "inc_qm2_lvp_03": {"name": "INCOMING QM2 LVP-03", "password": "machine5"},
-    "inc_qm3_lvp_01": {"name": "INCOMING QM3 LVP-01", "password": "machine6"},
-    "inc_qm1_f12_lvp_02_b": {"name": "INCOMING QM1 F12 LVP-02 B", "password": "machine7"},
-    "inc_qm1_f13_lvp_02_a": {"name": "INCOMING QM1 F13 LVP-02 A", "password": "machine8"},
-    "inc_qm1_lvp_04": {"name": "INCOMING QM1 LVP-04", "password": "machine9"},
-    "inc_qm3_lvp_05": {"name": "INCOMING QM3 LVP-05", "password": "machine10"},
-    "inc_qm1_lvp_07": {"name": "INCOMING QM1 LVP-07", "password": "machine11"},
-    "inc_qm3_lvp_06": {"name": "INCOMING QM3 LVP-06", "password": "machine12"},
-    "inc_l3_feeder_1": {"name": "INCOMING L3 Feeder 1", "password": "machine13"},
-    "inc_l3_feeder_2": {"name": "INCOMING L3 Feeder 2", "password": "machine14"},
-    "inc_cpp_met": {"name": "INCOMING CPP-1/CPP-2/CCP-MET", "password": "machine15"}
+    
+    # Line 5 Feeders (LVP Series)
+    "inc_qm2_lvp_03": {"name": "Line5 LT1 Feeder 3 (QM2)", "password": "machine5"},
+    "inc_qm3_lvp_01": {"name": "Line5 LT1 Feeder 1 (QM3)", "password": "machine6"},
+    "inc_qm1_f12_lvp_02_b": {"name": "Line5 LT1 Feeder 2 Ext Delta (QM1 F12)", "password": "machine7"},
+    "inc_qm1_f13_lvp_02_a": {"name": "Line5 LT1 Feeder 2 Ext Star (QM1 F13)", "password": "machine8"},
+    "inc_qm1_lvp_04": {"name": "Line5 LT2 Feeder 4 (QM1)", "password": "machine9"},
+    "inc_qm3_lvp_05": {"name": "Line5 LT2 Feeder 5 (QM3)", "password": "machine10"},
+    "inc_qm1_lvp_07": {"name": "Line5 LT3 Feeder 7 (QM1)", "password": "machine11"},
+    "inc_qm3_lvp_06": {"name": "Line5 LT3 Feeder 6 (QM3)", "password": "machine12"},
+    
+    # Line 3 Feeders
+    "inc_l3_feeder_1": {"name": "Line3 Feeder 1 (TR1)", "password": "machine13"},
+    "inc_l3_feeder_2": {"name": "Line3 Feeder 2 (TR2)", "password": "machine14"},
+    "inc_cpp_met": {"name": "Line3 Feeder 3 (CPP)", "password": "machine15"}
 }
+
+# (Leave INDIVIDUAL_MACHINES exactly as it is, since it has your new CPP plants)
 
 INDIVIDUAL_MACHINES = {
     "m_ps5": {"name": "PS 5 (BOPP)", "password": "machine16"},
