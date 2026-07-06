@@ -319,6 +319,13 @@
                         prevVals.i = parseFloat(d.i_l1);
                     } else { updateValText(`val-i-${MACHINE_ID}`, '---'); updateGauge(MACHINE_ID, 'i', 0, 3000); }
 
+                    // Missing Power (kW) Update Logic
+                    if (d.kw !== undefined && d.kw !== "---") {
+                        animateValue(document.getElementById(`val-kw-${MACHINE_ID}`), prevVals.kw, parseFloat(d.kw), 500, 1);
+                        updateGauge(MACHINE_ID, 'kw', parseFloat(d.kw), 500);
+                        prevVals.kw = parseFloat(d.kw);
+                    } else { updateValText(`val-kw-${MACHINE_ID}`, '---'); updateGauge(MACHINE_ID, 'kw', 0, 500); }
+
                     // 2. Update LCD Text Boxes (and Total Energy)
                     if (d.kwh_total !== undefined && d.kwh_total !== "---") {
                         updateValText('total-mwh', parseFloat(d.kwh_total).toFixed(1));
