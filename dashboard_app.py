@@ -71,17 +71,18 @@ INDIVIDUAL_MACHINES = {
     "m_ss09": {"name": "SS-09", "password": "machine27"},
     "m_ss11": {"name": "SS-11", "password": "machine28"},
     "m_ss08": {"name": "SS-08", "password": "machine29"},
-    
-    # NEW SUMMED PLANTS SHIFTED TO MACHINE DIRECTORY
     "m_cpp1": {"name": "CPP1 Plant", "password": "machine30"},
     "m_cpp2": {"name": "CPP2 Plant", "password": "machine31"},
-    
     "m_k51": {"name": "K5 1 (CPP)", "password": "machine32"},
     "m_ps4": {"name": "PS 4 (CPP)", "password": "machine33"},
     "m_k53": {"name": "K5 3 (CPP)", "password": "machine34"},
     "m_ps6": {"name": "PS 6 (CPP)", "password": "machine35"},
     "m_tape_line": {"name": "Tape Line Machine", "password": "machine37"},
-    "m_tape_slitter": {"name": "Tape Machine Slitter", "password": "machine38"}
+    "m_tape_slitter": {"name": "Tape Machine Slitter", "password": "machine38"},
+    
+    # --- MASS VIRTUAL AGGREGATIONS ---
+    "m_line4": {"name": "Line 4 Plant", "password": "machine39"},
+    "m_line5": {"name": "Line 5 Plant", "password": "machine40"}
 }
 
 LIVE_DATA = {sec_id: {} for sec_id in SECTIONS.keys()}
