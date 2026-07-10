@@ -135,28 +135,17 @@ async def admin_auth(request: Request, password: str = Form(...)):
     return RedirectResponse(url="/admin?error=1", status_code=status.HTTP_303_SEE_OTHER)
 
 @app.post("/admin/update_password")
-async def update_password(entity_id: str = Form(...), new_password: str = Form(...)):
-    # 1. Check if user is actually an admin in their session
-    if not request.session.get("is_admin"): 
+async def update_password(request: Request, entity_id: str = Form(...), new_password: str = Form(...)):
+    if request.session.get("is_admin") != True: 
         raise HTTPException(status_code=403, detail="Not authorized")
-        
     try:
         conn = get_db_connection()
         cur = conn.cursor()
-        # 2. Perform the update
         cur.execute("UPDATE entity_passwords SET password = %s WHERE entity_id = %s", (new_password, entity_id))
         conn.commit()
-        
-        # Check if anything actually changed
-        if cur.rowcount == 0:
-            return {"status": "error", "message": "Machine ID not found in database"}
-            
-        cur.close()
-        conn.close()
+        cur.close(); conn.close()
         return {"status": "success"}
-    except Exception as e: 
-        print(f"Admin Update Error: {e}")
-        return {"status": "error", "message": str(e)}
+    except Exception as e: return {"status": "error", "message": str(e)}
 
 @app.post("/login/{section_id}")
 async def login_submit(request: Request, section_id: str, password: str = Form(...)):
@@ -190,7 +179,7 @@ async def login_machine(request: Request, machine_id: str, password: str = Form(
             request.session["machine_auth"] = m_auth
             return RedirectResponse(url=f"/isolated/{machine_id}", status_code=status.HTTP_303_SEE_OTHER)
     except: pass
-    return RedirectResponse(url="/?error=1", status=status.HTTP_303_SEE_OTHER)
+    return RedirectResponse(url="/?error=1", status_code=status.HTTP_303_SEE_OTHER)
 
 @app.get("/dashboard/{section_id}")
 async def serve_dashboard(request: Request, section_id: str):
@@ -238,9 +227,7 @@ async def update_live_data(section_id: str, data: dict = Body(...)):
     return {"status": "success"}
 
 def get_sql_interval(timeframe):
-    # FIXED: Corrected dictionary syntax from () to {}
-    intervals = {'1h': '1 HOUR', '8h': '8 HOURS', '24h': '24 HOURS', '7d': '7 DAYS', '30d': '30 DAYS'}
-    return intervals.get(timeframe, '24 HOURS')
+    return {"1h": "1 HOUR", "8h": "8 HOURS", "24h": "24 HOURS", "7d": "7 DAYS", "30d": "30 DAYS"}.get(timeframe, "24 HOURS")
 
 @app.get("/api/isolated_history/{machine_id}")
 async def get_isolated_history(request: Request, machine_id: str, timeframe: str = "24h", start: str = None, end: str = None):
