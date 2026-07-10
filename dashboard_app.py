@@ -16,7 +16,7 @@ from apscheduler.schedulers.background import BackgroundScheduler
 app = FastAPI(title="Tri-Pack Industrial Master SCADA")
 
 # --- MIDDLEWARE & TEMPLATES ---
-app.add_middleware(SessionMiddleware, secret_key="tripack_super_secret_key_123")
+app.add_middleware(SessionMiddleware, secret_key="tripack_super_secret_key_123", same_site="lax")
 app.mount("/static", StaticFiles(directory="static"), name="static")
 templates = Jinja2Templates(directory="templates")
 
@@ -136,14 +136,27 @@ async def admin_auth(request: Request, password: str = Form(...)):
 
 @app.post("/admin/update_password")
 async def update_password(entity_id: str = Form(...), new_password: str = Form(...)):
-    if request.session.get("is_admin") != True: raise HTTPException(status_code=403)
+    # 1. Check if user is actually an admin in their session
+    if not request.session.get("is_admin"): 
+        raise HTTPException(status_code=403, detail="Not authorized")
+        
     try:
         conn = get_db_connection()
         cur = conn.cursor()
+        # 2. Perform the update
         cur.execute("UPDATE entity_passwords SET password = %s WHERE entity_id = %s", (new_password, entity_id))
-        conn.commit(); cur.close(); conn.close()
+        conn.commit()
+        
+        # Check if anything actually changed
+        if cur.rowcount == 0:
+            return {"status": "error", "message": "Machine ID not found in database"}
+            
+        cur.close()
+        conn.close()
         return {"status": "success"}
-    except Exception as e: return {"status": "error", "message": str(e)}
+    except Exception as e: 
+        print(f"Admin Update Error: {e}")
+        return {"status": "error", "message": str(e)}
 
 @app.post("/login/{section_id}")
 async def login_submit(request: Request, section_id: str, password: str = Form(...)):
