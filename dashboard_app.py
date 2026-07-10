@@ -258,8 +258,21 @@ async def get_history(request: Request, section_id: str, timeframe: str = "24h",
         if timeframe == 'custom' and start and end:
             query += " AND timestamp >= CAST(%s AS TIMESTAMP) AND timestamp <= CAST(%s AS TIMESTAMP)"
             params.extend([start, end])
-        else: query += f" AND timestamp >= NOW() - INTERVAL '{['1h':'1 HOUR', '8h':'8 HOURS', '24h':'24 HOURS', '7d':'7 DAYS', '30d':'30 DAYS'].get(timeframe, '24 HOURS')}'"
+        # ... existing code ...
+        else:
+            # Define the dictionary separately to avoid SyntaxError in f-string
+            intervals = {
+                "1h": "1 HOUR", 
+                "8h": "8 HOURS", 
+                "24h": "24 HOURS", 
+                "7d": "7 DAYS", 
+                "30d": "30 DAYS"
+            }
+            interval_val = intervals.get(timeframe, "24 HOURS")
+            query += f" AND timestamp >= NOW() - INTERVAL '{interval_val}'"
+            
         query += " ORDER BY timestamp ASC"
+# ... existing code ...
         cur.execute(query, tuple(params))
         rows = cur.fetchall()
         cur.close(); conn.close()
