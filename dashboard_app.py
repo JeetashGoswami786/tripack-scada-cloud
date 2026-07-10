@@ -189,9 +189,16 @@ async def serve_api_data(section_id: str):
 @app.post("/api/update_data/{section_id}")
 async def update_live_data(section_id: str, data: dict = Body(...)):
     global LIVE_DATA, last_db_write
-    if section_id not in SECTIONS and section_id != "individual_machines": return {"status": "error"}
+    if section_id not in SECTIONS and section_id != "individual_machines": 
+        return {"status": "error"}
     
-    LIVE_DATA[section_id] = data
+    # CRITICAL FIX: Use .update() instead of = 
+    # This merges new readings into the existing data instead of wiping the whole list
+    if section_id not in LIVE_DATA:
+        LIVE_DATA[section_id] = {}
+    
+    LIVE_DATA[section_id].update(data) 
+    
     current_time = time.time()
     
     if DATABASE_URL and (current_time - last_db_write.get(section_id, 0) >= 60):
@@ -213,7 +220,9 @@ async def update_live_data(section_id: str, data: dict = Body(...)):
             cur.close()
             conn.close()
             last_db_write[section_id] = current_time
-        except Exception as e: pass
+        except Exception as e: 
+            print(f"DB Write Error: {e}")
+            
     return {"status": "success"}
 
 def get_sql_interval(timeframe):
