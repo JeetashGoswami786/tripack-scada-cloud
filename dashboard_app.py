@@ -19,7 +19,7 @@ app.add_middleware(SessionMiddleware, secret_key="tripack_super_secret_key_123")
 app.mount("/static", StaticFiles(directory="static"), name="static")
 templates = Jinja2Templates(directory="templates")
 
-# --- TIER 1: PLANT AREAS (ADDED LINE 3) ---
+# --- TIER 1: PLANT AREAS ---
 SECTIONS = {
     "line3": {"name": "Line 3", "password": "tripack123"},
     "line3_ems": {"name": "Line 3 EMS", "password": "tripack123"},
@@ -32,13 +32,10 @@ SECTIONS = {
 
 # --- TIER 2: ISOLATED DIRECTORIES ---
 MAIN_INCOMING = {
-    # Line 4 Feeders (Kept as Original)
     "inc_ext_delta_l4": {"name": "INCOMING Ext Delta Line 4", "password": "machine1"},
     "inc_l4_feeder_1": {"name": "INCOMING L4 Feeder 1", "password": "machine2"},
     "inc_ext_star_l4": {"name": "INCOMING Ext Star Line 4", "password": "machine3"},
     "inc_l4_feeder_2": {"name": "INCOMING L4 Feeder 2", "password": "machine4"},
-    
-    # Line 5 Feeders (LVP Series)
     "inc_qm2_lvp_03": {"name": "Line5 LT1 Feeder 3 (QM2)", "password": "machine5"},
     "inc_qm3_lvp_01": {"name": "Line5 LT1 Feeder 1 (QM3)", "password": "machine6"},
     "inc_qm1_f12_lvp_02_b": {"name": "Line5 LT1 Feeder 2 Ext Delta (QM1 F12)", "password": "machine7"},
@@ -47,14 +44,10 @@ MAIN_INCOMING = {
     "inc_qm3_lvp_05": {"name": "Line5 LT2 Feeder 5 (QM3)", "password": "machine10"},
     "inc_qm1_lvp_07": {"name": "Line5 LT3 Feeder 7 (QM1)", "password": "machine11"},
     "inc_qm3_lvp_06": {"name": "Line5 LT3 Feeder 6 (QM3)", "password": "machine12"},
-    
-    # Line 3 Feeders
     "inc_l3_feeder_1": {"name": "Line3 Feeder 1 (TR1)", "password": "machine13"},
     "inc_l3_feeder_2": {"name": "Line3 Feeder 2 (TR2)", "password": "machine14"},
     "inc_cpp_met": {"name": "Line3 Feeder 3 (CPP)", "password": "machine15"}
 }
-
-# (Leave INDIVIDUAL_MACHINES exactly as it is, since it has your new CPP plants)
 
 INDIVIDUAL_MACHINES = {
     "m_ps5": {"name": "PS 5 (BOPP)", "password": "machine16"},
@@ -79,8 +72,6 @@ INDIVIDUAL_MACHINES = {
     "m_ps6": {"name": "PS 6 (CPP)", "password": "machine35"},
     "m_tape_line": {"name": "Tape Line Machine", "password": "machine37"},
     "m_tape_slitter": {"name": "Tape Machine Slitter", "password": "machine38"},
-    
-    # --- MASS VIRTUAL AGGREGATIONS ---
     "m_line4": {"name": "Line 4 Plant", "password": "machine39"},
     "m_line5": {"name": "Line 5 Plant", "password": "machine40"}
 }
@@ -105,48 +96,96 @@ def init_server():
     try:
         conn = get_db_connection()
         cur = conn.cursor()
+        
+        # 1. FULL HISTORY TABLE (Fixed)
         cur.execute('''CREATE TABLE IF NOT EXISTS scada_history (
             id SERIAL PRIMARY KEY, timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             section_id VARCHAR(50), machine_id VARCHAR(50),
             v_l1 REAL, i_l1 REAL, kw REAL, pf REAL, kwh REAL DEFAULT 0,
             v_l2 REAL DEFAULT 0, v_l3 REAL DEFAULT 0, i_l2 REAL DEFAULT 0, i_l3 REAL DEFAULT 0,
-            thd_v REAL DEFAULT 0, thd_i REAL DEFAULT 0)''')
-        cur.execute('CREATE INDEX IF NOT EXISTS idx_machine_time ON scada_history(machine_id, timestamp);')
+            thd_v REAL DEFAULT 0, thd_i REAL DEFAULT 0)''') 
+
+        # 2. Passwords Table
+        cur.execute('''
+            CREATE TABLE IF NOT EXISTS entity_passwords (
+                entity_id VARCHAR(50) PRIMARY KEY, 
+                password VARCHAR(100) NOT NULL
+            )
+        ''')
+        
+        # 3. Migration
+        all_entities = {**SECTIONS, **MAIN_INCOMING, **INDIVIDUAL_MACHINES}
+        for eid, info in all_entities.items():
+            cur.execute('''
+                INSERT INTO entity_passwords (entity_id, password) 
+                VALUES (%s, %s) 
+                ON CONFLICT (entity_id) DO NOTHING
+            ''', (eid, info["password"]))
+            
         conn.commit()
         cur.close()
         conn.close()
     except Exception as e: print(f"DB Error: {e}")
 
-# ==========================================
-# --- CRASH-FREE ROUTING ---
-# ==========================================
-# ==========================================
-# --- CRASH-FREE ROUTING ---
-# ==========================================
-# ==========================================
-# --- CRASH-FREE ROUTING ---
-# ==========================================
+# --- ROUTING ---
 @app.get("/")
 async def serve_hub(request: Request):
-    return templates.TemplateResponse(
-        request=request, 
-        name="hub.html", 
-        context={
-            "sections": SECTIONS,
-            "individual_machines": INDIVIDUAL_MACHINES,
-            "main_incoming": MAIN_INCOMING # Added to dynamically build the Incoming dropdown
-        }
-    )
+    return templates.TemplateResponse(request=request, name="hub.html", context={"sections": SECTIONS, "individual_machines": INDIVIDUAL_MACHINES, "main_incoming": MAIN_INCOMING})
+
+ADMIN_MASTER_PASSWORD = "DirectorPassword2026"
+
+@app.get("/admin")
+async def admin_login_page(request: Request):
+    if request.session.get("is_admin") != True:
+        return templates.TemplateResponse(request=request, name="admin_login.html")
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor(cursor_factory=RealDictCursor)
+        cur.execute("SELECT * FROM entity_passwords ORDER BY entity_id ASC")
+        all_passwords = cur.fetchall()
+        cur.close()
+        conn.close()
+        return templates.TemplateResponse(request=request, name="admin_panel.html", context={"passwords": all_passwords})
+    except Exception as e: return {"error": str(e)}
+
+@app.post("/admin/auth")
+async def admin_auth(request: Request, password: str = Form(...)):
+    if password == ADMIN_MASTER_PASSWORD:
+        request.session["is_admin"] = True
+        return RedirectResponse(url="/admin", status_code=status.HTTP_303_SEE_OTHER)
+    return RedirectResponse(url="/admin?error=1", status_code=status.HTTP_303_SEE_OTHER)
+
+@app.post("/admin/update_password")
+async def update_password(request: Request, entity_id: str = Form(...), new_password: str = Form(...)):
+    if request.session.get("is_admin") != True:
+        return {"status": "error", "message": "Unauthorized"}
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor()
+        cur.execute("UPDATE entity_passwords SET password = %s WHERE entity_id = %s", (new_password, entity_id))
+        conn.commit()
+        cur.close()
+        conn.close()
+        return {"status": "success"}
+    except Exception as e: return {"status": "error", "message": str(e)}
 
 @app.post("/login/{section_id}")
 async def login_submit(request: Request, section_id: str, password: str = Form(...)):
     if section_id not in SECTIONS: return RedirectResponse(url="/", status_code=status.HTTP_303_SEE_OTHER)
-    if password == SECTIONS[section_id]["password"]:
-        auth_list = request.session.get("authorized", [])
-        if section_id not in auth_list:
-            auth_list.append(section_id)
-            request.session["authorized"] = auth_list
-        return RedirectResponse(url=f"/dashboard/{section_id}", status_code=status.HTTP_303_SEE_OTHER)
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor()
+        cur.execute("SELECT password FROM entity_passwords WHERE entity_id = %s", (section_id,))
+        result = cur.fetchone()
+        cur.close()
+        conn.close()
+        if result and password == result[0]:
+            auth_list = request.session.get("authorized", [])
+            if section_id not in auth_list:
+                auth_list.append(section_id)
+                request.session["authorized"] = auth_list
+            return RedirectResponse(url=f"/dashboard/{section_id}", status_code=status.HTTP_303_SEE_OTHER)
+    except Exception as e: print(f"Login Error: {e}")
     return RedirectResponse(url="/?error=1", status_code=status.HTTP_303_SEE_OTHER)
 
 @app.get("/logout")
@@ -162,26 +201,32 @@ async def serve_dashboard(request: Request, section_id: str):
 
 @app.post("/login_machine/{machine_id}")
 async def login_machine(request: Request, machine_id: str, password: str = Form(...)):
-    m = MAIN_INCOMING.get(machine_id) or INDIVIDUAL_MACHINES.get(machine_id)
-    if m and password.strip() == m["password"]:
-        m_auth_list = request.session.get("machine_auth", [])
-        if machine_id not in m_auth_list:
-            m_auth_list.append(machine_id)
-            request.session["machine_auth"] = m_auth_list
-        return RedirectResponse(url=f"/isolated/{machine_id}", status_code=status.HTTP_303_SEE_OTHER)
-    # If the password is wrong, redirect back to the Hub with an error flag
+    if machine_id not in MAIN_INCOMING and machine_id not in INDIVIDUAL_MACHINES:
+        return RedirectResponse(url="/?error=1", status_code=status.HTTP_303_SEE_OTHER)
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor()
+        cur.execute("SELECT password FROM entity_passwords WHERE entity_id = %s", (machine_id,))
+        result = cur.fetchone()
+        cur.close()
+        conn.close()
+        if result and password.strip() == result[0]:
+            m_auth_list = request.session.get("machine_auth", [])
+            if machine_id not in m_auth_list:
+                m_auth_list.append(machine_id)
+                request.session["machine_auth"] = m_auth_list
+            return RedirectResponse(url=f"/isolated/{machine_id}", status_code=status.HTTP_303_SEE_OTHER)
+    except Exception as e: print(f"Machine Login Error: {e}")
     return RedirectResponse(url="/?error=1", status_code=status.HTTP_303_SEE_OTHER)
 
 @app.get("/isolated/{machine_id}")
 async def serve_isolated(request: Request, machine_id: str):
     if machine_id not in request.session.get("machine_auth", []):
-        # If unauthorized, return directly to the Master Hub
         return RedirectResponse(url="/", status_code=status.HTTP_303_SEE_OTHER)
     m = MAIN_INCOMING.get(machine_id) or INDIVIDUAL_MACHINES.get(machine_id)
     return templates.TemplateResponse(request=request, name="single_machine.html", context={"machine_id": machine_id, "machine_name": m["name"]})
-# ==========================================
+
 # --- DATA APIs ---
-# ==========================================
 @app.get("/api/live_data/{section_id}")
 async def serve_api_data(section_id: str):
     return LIVE_DATA.get(section_id, {})
@@ -189,18 +234,10 @@ async def serve_api_data(section_id: str):
 @app.post("/api/update_data/{section_id}")
 async def update_live_data(section_id: str, data: dict = Body(...)):
     global LIVE_DATA, last_db_write
-    if section_id not in SECTIONS and section_id != "individual_machines": 
-        return {"status": "error"}
-    
-    # CRITICAL FIX: Use .update() instead of = 
-    # This merges new readings into the existing data instead of wiping the whole list
-    if section_id not in LIVE_DATA:
-        LIVE_DATA[section_id] = {}
-    
+    if section_id not in SECTIONS and section_id != "individual_machines": return {"status": "error"}
+    if section_id not in LIVE_DATA: LIVE_DATA[section_id] = {}
     LIVE_DATA[section_id].update(data) 
-    
     current_time = time.time()
-    
     if DATABASE_URL and (current_time - last_db_write.get(section_id, 0) >= 60):
         try:
             conn = get_db_connection()
@@ -211,22 +248,15 @@ async def update_live_data(section_id: str, data: dict = Body(...)):
                         INSERT INTO scada_history 
                         (section_id, machine_id, v_l1, v_l2, v_l3, i_l1, i_l2, i_l3, kw, pf, kwh, thd_v, thd_i)
                         VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
-                    ''', (section_id, str(m_id), 
-                          vals.get('v_l1', 0), vals.get('v_l2', 0), vals.get('v_l3', 0),
-                          vals.get('i_l1', 0), vals.get('i_l2', 0), vals.get('i_l3', 0),
-                          vals.get('kw', 0), vals.get('pf', 0), vals.get('kwh_total', 0),
-                          vals.get('thd_v', 0), vals.get('thd_i', 0)))
+                    ''', (section_id, str(m_id), vals.get('v_l1', 0), vals.get('v_l2', 0), vals.get('v_l3', 0),
+                          vals.get('i_l1', 0), vals.get('i_l2', 0), vals.get('i_l3', 0), vals.get('kw', 0),
+                          vals.get('pf', 0), vals.get('kwh_total', 0), vals.get('thd_v', 0), vals.get('thd_i', 0)))
             conn.commit()
             cur.close()
             conn.close()
             last_db_write[section_id] = current_time
-        except Exception as e: 
-            print(f"DB Write Error: {e}")
-            
+        except Exception as e: print(f"DB Write Error: {e}")
     return {"status": "success"}
-
-def get_sql_interval(timeframe):
-    return {"1h": "1 HOUR", "8h": "8 HOURS", "24h": "24 HOURS", "7d": "7 DAYS", "30d": "30 DAYS"}.get(timeframe, "24 HOURS")
 
 @app.get("/api/isolated_history/{machine_id}")
 async def get_isolated_history(request: Request, machine_id: str, timeframe: str = "24h", start: str = None, end: str = None):
@@ -240,14 +270,13 @@ async def get_isolated_history(request: Request, machine_id: str, timeframe: str
         if timeframe == 'custom' and start and end:
             query += " AND timestamp >= CAST(%s AS TIMESTAMP) AND timestamp <= CAST(%s AS TIMESTAMP)"
             params.extend([start, end])
-        else: query += f" AND timestamp >= NOW() - INTERVAL '{get_sql_interval(timeframe)}'"
+        else: query += f" AND timestamp >= NOW() - INTERVAL '{'1 HOUR' if timeframe=='1h' else '8 HOURS' if timeframe=='8h' else '24 HOURS' if timeframe=='24h' else '7 DAYS' if timeframe=='7d' else '30 DAYS'}'"
         query += " ORDER BY timestamp ASC"
         cur.execute(query, tuple(params))
         rows = cur.fetchall()
         cur.close()
         conn.close()
-        history = {machine_id: [{"ts": r['ts'], "kw": r['kw'], "pf": r['pf'], "kwh": r['kwh'], "v_l1": r['v_l1'], "i_l1": r['i_l1'], "thd_v": r['thd_v']} for r in rows]}
-        return history
+        return {machine_id: [{"ts": r['ts'], "kw": r['kw'], "pf": r['pf'], "kwh": r['kwh'], "v_l1": r['v_l1'], "i_l1": r['i_l1'], "thd_v": r['thd_v']} for r in rows]}
     except Exception as e: return {"error": str(e)}
 
 @app.get("/api/history/{section_id}")
@@ -261,7 +290,7 @@ async def get_history(section_id: str, timeframe: str = "24h", start: str = None
         if timeframe == 'custom' and start and end:
             query += " AND timestamp >= CAST(%s AS TIMESTAMP) AND timestamp <= CAST(%s AS TIMESTAMP)"
             params.extend([start, end])
-        else: query += f" AND timestamp >= NOW() - INTERVAL '{get_sql_interval(timeframe)}'"
+        else: query += f" AND timestamp >= NOW() - INTERVAL '{'1 HOUR' if timeframe=='1h' else '8 HOURS' if timeframe=='8h' else '24 HOURS' if timeframe=='24h' else '7 DAYS' if timeframe=='7d' else '30 DAYS}'"
         query += " ORDER BY timestamp ASC"
         cur.execute(query, tuple(params))
         rows = cur.fetchall()
@@ -286,7 +315,7 @@ async def export_csv(section_id: str, timeframe: str = "24h", start: str = None,
         if timeframe == 'custom' and start and end:
             query += " AND timestamp >= CAST(%s AS TIMESTAMP) AND timestamp <= CAST(%s AS TIMESTAMP)"
             params.extend([start, end])
-        else: query += f" AND timestamp >= NOW() - INTERVAL '{get_sql_interval(timeframe)}'"
+        else: query += f" AND timestamp >= NOW() - INTERVAL '{'1 HOUR' if timeframe=='1h' else '8 HOURS' if timeframe=='8h' else '24 HOURS' if timeframe=='24h' else '7 DAYS' if timeframe=='7d' else '30 DAYS}'"
         query += " ORDER BY timestamp DESC"
         cur.execute(query, tuple(params))
         rows = cur.fetchall()
@@ -308,8 +337,6 @@ async def get_monthly_stats(section_id: str):
     try:
         conn = get_db_connection()
         cur = conn.cursor(cursor_factory=RealDictCursor)
-        
-        # 1. Fetch Current Month (Simple Min/Max)
         cur.execute("""
             SELECT machine_id, MIN(kwh) as start_kwh, MAX(kwh) as end_kwh, AVG(kw) as avg_kw
             FROM scada_history 
@@ -318,8 +345,6 @@ async def get_monthly_stats(section_id: str):
             GROUP BY machine_id
         """, (section_id,))
         current_rows = cur.fetchall()
-        
-        # 2. Fetch Past Month
         cur.execute("""
             SELECT machine_id, MIN(kwh) as start_kwh, MAX(kwh) as end_kwh
             FROM scada_history 
@@ -329,38 +354,24 @@ async def get_monthly_stats(section_id: str):
             GROUP BY machine_id
         """, (section_id,))
         past_rows = cur.fetchall()
-        
         cur.close()
         conn.close()
-        
         stats = {}
-        # Process Current Month
         for row in current_rows:
             m_id = str(row['machine_id'])
             s_val, e_val = float(row['start_kwh'] or 0), float(row['end_kwh'] or 0)
             s_v = s_val / 1000 if s_val > 100000000 else s_val
             e_v = e_val / 1000 if e_val > 100000000 else e_val
-            
-            stats[m_id] = {
-                "current_month_energy": round(max(0, e_v - s_v), 2),
-                "current_month_avg_kw": round(float(row['avg_kw'] or 0), 2),
-                "past_month_energy": 0.0
-            }
-            
-        # Process Past Month
+            stats[m_id] = {"current_month_energy": round(max(0, e_v - s_v), 2), "current_month_avg_kw": round(float(row['avg_kw'] or 0), 2), "past_month_energy": 0.0}
         for row in past_rows:
             m_id = str(row['machine_id'])
             s_val, e_val = float(row['start_kwh'] or 0), float(row['end_kwh'] or 0)
             s_v = s_val / 1000 if s_val > 100000000 else s_val
             e_v = e_val / 1000 if e_val > 100000000 else e_val
-            
             if m_id in stats: stats[m_id]["past_month_energy"] = round(max(0, e_v - s_v), 2)
             else: stats[m_id] = {"current_month_energy": 0.0, "current_month_avg_kw": 0.0, "past_month_energy": round(max(0, e_v - s_v), 2)}
-                
         return stats
-    except Exception as e: 
-        print(f"Stats Error: {e}")
-        return {}
+    except Exception as e: print(f"Stats Error: {e}"); return {}
 
 if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=8000)
