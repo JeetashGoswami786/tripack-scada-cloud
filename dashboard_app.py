@@ -300,69 +300,53 @@ async def get_monthly_stats(section_id: str):
         conn = get_db_connection()
         cur = conn.cursor(cursor_factory=RealDictCursor)
         
-        # ONE SINGLE, LIGHTNING-FAST QUERY
-        # Partitions history into Current and Past month, grabbing the exact first and last reading, bypassing all glitches.
+        # 1. Fetch Current Month (Simple Min/Max)
         cur.execute("""
-            WITH FilteredHistory AS (
-                SELECT 
-                    machine_id, 
-                    kwh, 
-                    kw,
-                    CASE 
-                        WHEN timestamp >= DATE_TRUNC('month', CURRENT_DATE) + INTERVAL '7 hours' THEN 'current' 
-                        ELSE 'past' 
-                    END as m_group,
-                    ROW_NUMBER() OVER(PARTITION BY machine_id, 
-                        CASE WHEN timestamp >= DATE_TRUNC('month', CURRENT_DATE) + INTERVAL '7 hours' THEN 'current' ELSE 'past' END 
-                        ORDER BY timestamp ASC) as rn_asc,
-                    ROW_NUMBER() OVER(PARTITION BY machine_id, 
-                        CASE WHEN timestamp >= DATE_TRUNC('month', CURRENT_DATE) + INTERVAL '7 hours' THEN 'current' ELSE 'past' END 
-                        ORDER BY timestamp DESC) as rn_desc
-                FROM scada_history 
-                WHERE section_id = %s 
-                  AND kwh > 0 
-                  AND timestamp >= DATE_TRUNC('month', CURRENT_DATE - INTERVAL '1 month') + INTERVAL '7 hours'
-            ),
-            Bounds AS (
-                SELECT 
-                    machine_id, 
-                    m_group,
-                    MAX(CASE WHEN rn_asc = 1 THEN kwh END) as start_kwh,
-                    MAX(CASE WHEN rn_desc = 1 THEN kwh END) as end_kwh,
-                    AVG(kw) as avg_kw
-                FROM FilteredHistory
-                GROUP BY machine_id, m_group
-            )
-            SELECT * FROM Bounds;
+            SELECT machine_id, MIN(kwh) as start_kwh, MAX(kwh) as end_kwh, AVG(kw) as avg_kw
+            FROM scada_history 
+            WHERE section_id = %s 
+              AND timestamp >= DATE_TRUNC('month', CURRENT_DATE) + INTERVAL '7 hours'
+            GROUP BY machine_id
         """, (section_id,))
+        current_rows = cur.fetchall()
         
-        rows = cur.fetchall()
+        # 2. Fetch Past Month
+        cur.execute("""
+            SELECT machine_id, MIN(kwh) as start_kwh, MAX(kwh) as end_kwh
+            FROM scada_history 
+            WHERE section_id = %s 
+              AND timestamp >= DATE_TRUNC('month', CURRENT_DATE - INTERVAL '1 month') + INTERVAL '7 hours'
+              AND timestamp < DATE_TRUNC('month', CURRENT_DATE) + INTERVAL '7 hours'
+            GROUP BY machine_id
+        """, (section_id,))
+        past_rows = cur.fetchall()
+        
         cur.close()
         conn.close()
         
         stats = {}
-        for row in rows:
+        # Process Current Month
+        for row in current_rows:
             m_id = str(row['machine_id'])
-            if m_id not in stats:
-                stats[m_id] = {
-                    "current_month_energy": 0.0, 
-                    "current_month_avg_kw": 0.0, 
-                    "past_month_energy": 0.0
-                }
-                
-            s_val = float(row['start_kwh'] or 0)
-            e_val = float(row['end_kwh'] or 0)
-            
-            # Auto-scale extremely large numbers down to kWh
+            s_val, e_val = float(row['start_kwh'] or 0), float(row['end_kwh'] or 0)
             s_v = s_val / 1000 if s_val > 100000000 else s_val
             e_v = e_val / 1000 if e_val > 100000000 else e_val
-            energy = max(0, e_v - s_v)
             
-            if row['m_group'] == 'current':
-                stats[m_id]['current_month_energy'] = round(energy, 2)
-                stats[m_id]['current_month_avg_kw'] = round(float(row['avg_kw'] or 0), 2)
-            else:
-                stats[m_id]['past_month_energy'] = round(energy, 2)
+            stats[m_id] = {
+                "current_month_energy": round(max(0, e_v - s_v), 2),
+                "current_month_avg_kw": round(float(row['avg_kw'] or 0), 2),
+                "past_month_energy": 0.0
+            }
+            
+        # Process Past Month
+        for row in past_rows:
+            m_id = str(row['machine_id'])
+            s_val, e_val = float(row['start_kwh'] or 0), float(row['end_kwh'] or 0)
+            s_v = s_val / 1000 if s_val > 100000000 else s_val
+            e_v = e_val / 1000 if e_val > 100000000 else e_val
+            
+            if m_id in stats: stats[m_id]["past_month_energy"] = round(max(0, e_v - s_v), 2)
+            else: stats[m_id] = {"current_month_energy": 0.0, "current_month_avg_kw": 0.0, "past_month_energy": round(max(0, e_v - s_v), 2)}
                 
         return stats
     except Exception as e: 
