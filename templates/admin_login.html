@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Authentication</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <style>
+        body { background: #f4f7f6; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; font-family: 'Segoe UI', sans-serif; }
+        .login-card { background: white; padding: 2rem; border-radius: 12px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); width: 100%; max-width: 400px; text-align: center; }
+        .login-card h2 { color: #2c3e50; margin-bottom: 1.5rem; }
+        .login-card input { width: 100%; padding: 12px; margin-bottom: 1rem; border: 1px solid #ddd; border-radius: 6px; box-sizing: border-box; }
+        .login-card button { width: 100%; padding: 12px; background: #e74c3c; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 1rem; font-weight: bold; }
+        .login-card button:hover { background: #c0392b; }
+        .error-msg { color: #e74c3c; margin-bottom: 1rem; font-size: 0.9rem; }
+    </style>
+</head>
+<body>
+    <div class="login-card">
+        <h2>Admin Access</h2>
+        {% if request.query_params.get('error') %}
+            <div class="error-msg">Invalid Master Password</div>
+        {% endif %}
+        <form action="/admin/auth" method="post">
+            <input type="password" name="password" placeholder="Enter Master Password" required>
+            <button type="submit">Authorize Access</button>
+        </form>
+    </div>
+</body>
+</html>
