@@ -20,7 +20,7 @@ app.add_middleware(SessionMiddleware, secret_key="tripack_super_secret_key_123")
 app.mount("/static", StaticFiles(directory="static"), name="static")
 templates = Jinja2Templates(directory="templates")
 
-# --- MASTER CONFIGURATION ---
+# --- CONFIGURATION ---
 ADMIN_MASTER_PASSWORD = "DirectorPassword2026" 
 
 SECTIONS = {
@@ -93,17 +93,14 @@ def init_server():
     try:
         conn = get_db_connection()
         cur = conn.cursor()
-        # 1. History Table
         cur.execute('''CREATE TABLE IF NOT EXISTS scada_history (
             id SERIAL PRIMARY KEY, timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             section_id VARCHAR(50), machine_id VARCHAR(50),
             v_l1 REAL, i_l1 REAL, kw REAL, pf REAL, kwh REAL DEFAULT 0,
             v_l2 REAL DEFAULT 0, v_l3 REAL DEFAULT 0, i_l2 REAL DEFAULT 0, i_l3 REAL DEFAULT 0,
             thd_v REAL DEFAULT 0, thd_i REAL DEFAULT 0)''')
-        # 2. Passwords Table
         cur.execute('''CREATE TABLE IF NOT EXISTS entity_passwords (
             entity_id VARCHAR(50) PRIMARY KEY, password VARCHAR(100) NOT NULL)''')
-        # 3. Migration
         all_entities = {**SECTIONS, **MAIN_INCOMING, **INDIVIDUAL_MACHINES}
         for eid, info in all_entities.items():
             cur.execute("INSERT INTO entity_passwords (entity_id, password) VALUES (%s, %s) ON CONFLICT (entity_id) DO NOTHING", (eid, info["password"]))
@@ -112,10 +109,41 @@ def init_server():
         conn.close()
     except Exception as e: print(f"DB Init Error: {e}")
 
-# --- ROUTING ---
+# --- ROUTES ---
 @app.get("/")
 async def serve_hub(request: Request):
     return templates.TemplateResponse(request=request, name="hub.html", context={"sections": SECTIONS, "individual_machines": INDIVIDUAL_MACHINES, "main_incoming": MAIN_INCOMING})
+
+@app.get("/admin")
+async def admin_login_page(request: Request):
+    if request.session.get("is_admin") != True:
+        return templates.TemplateResponse(request=request, name="admin_login.html")
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor(cursor_factory=RealDictCursor)
+        cur.execute("SELECT * FROM entity_passwords ORDER BY entity_id ASC")
+        all_passwords = cur.fetchall()
+        cur.close(); conn.close()
+        return templates.TemplateResponse(request=request, name="admin_panel.html", context={"passwords": all_passwords})
+    except Exception as e: return {"error": str(e)}
+
+@app.post("/admin/auth")
+async def admin_auth(request: Request, password: str = Form(...)):
+    if password == ADMIN_MASTER_PASSWORD:
+        request.session["is_admin"] = True
+        return RedirectResponse(url="/admin", status_code=status.HTTP_303_SEE_OTHER)
+    return RedirectResponse(url="/admin?error=1", status_code=status.HTTP_303_SEE_OTHER)
+
+@app.post("/admin/update_password")
+async def update_password(entity_id: str = Form(...), new_password: str = Form(...)):
+    if request.session.get("is_admin") != True: raise HTTPException(status_code=403)
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor()
+        cur.execute("UPDATE entity_passwords SET password = %s WHERE entity_id = %s", (new_password, entity_id))
+        conn.commit(); cur.close(); conn.close()
+        return {"status": "success"}
+    except Exception as e: return {"status": "error", "message": str(e)}
 
 @app.post("/login/{section_id}")
 async def login_submit(request: Request, section_id: str, password: str = Form(...)):
@@ -136,7 +164,7 @@ async def login_submit(request: Request, section_id: str, password: str = Form(.
 
 @app.post("/login_machine/{machine_id}")
 async def login_machine(request: Request, machine_id: str, password: str = Form(...)):
-    if machine_id not in MAIN_INCOMING and machine_id not in INDIVIDUAL_MACHINES: return RedirectResponse(url="/?error=1", status=status.HTTP_303_SEE_OTHER)
+    if machine_id not in MAIN_INCOMING and machine_id not in INDIVIDUAL_MACHINES: return RedirectResponse(url="/?error=1", status_code=status.HTTP_303_SEE_OTHER)
     try:
         conn = get_db_connection()
         cur = conn.cursor()
@@ -168,37 +196,6 @@ async def logout(request: Request):
     request.session.clear()
     return RedirectResponse(url="/", status_code=status.HTTP_303_SEE_OTHER)
 
-# --- ADMIN PANEL ---
-@app.get("/admin")
-async def admin_login_page(request: Request):
-    if request.session.get("is_admin") != True: return templates.TemplateResponse(request=request, name="admin_login.html")
-    try:
-        conn = get_db_connection()
-        cur = conn.cursor(cursor_factory=RealDictCursor)
-        cur.execute("SELECT * FROM entity_passwords ORDER BY entity_id ASC")
-        all_passwords = cur.fetchall()
-        cur.close(); conn.close()
-        return templates.TemplateResponse(request=request, name="admin_panel.html", context={"passwords": all_passwords})
-    except Exception as e: return {"error": str(e)}
-
-@app.post("/admin/auth")
-async def admin_auth(request: Request, password: str = Form(...)):
-    if password == ADMIN_MASTER_PASSWORD:
-        request.session["is_admin"] = True
-        return RedirectResponse(url="/admin", status_code=status.HTTP_303_SEE_OTHER)
-    return RedirectResponse(url="/admin?error=1", status_code=status.HTTP_303_SEE_OTHER)
-
-@app.post("/admin/update_password")
-async def update_password(entity_id: str = Form(...), new_password: str = Form(...)):
-    if request.session.get("is_admin") != True: raise HTTPException(status_code=403)
-    try:
-        conn = get_db_connection()
-        cur = conn.cursor()
-        cur.execute("UPDATE entity_passwords SET password = %s WHERE entity_id = %s", (new_password, entity_id))
-        conn.commit(); cur.close(); conn.close()
-        return {"status": "success"}
-    except Exception as e: return {"status": "error", "message": str(e)}
-
 # --- DATA APIs ---
 @app.get("/api/live_data/{section_id}")
 async def serve_api_data(section_id: str):
@@ -227,6 +224,11 @@ async def update_live_data(section_id: str, data: dict = Body(...)):
         except Exception as e: print(f"DB Write Error: {e}")
     return {"status": "success"}
 
+def get_sql_interval(timeframe):
+    # FIXED: Corrected dictionary syntax from () to {}
+    intervals = {'1h': '1 HOUR', '8h': '8 HOURS', '24h': '24 HOURS', '7d': '7 DAYS', '30d': '30 DAYS'}
+    return intervals.get(timeframe, '24 HOURS')
+
 @app.get("/api/isolated_history/{machine_id}")
 async def get_isolated_history(request: Request, machine_id: str, timeframe: str = "24h", start: str = None, end: str = None):
     if machine_id not in request.session.get("machine_auth", []): return {"error": "Unauthorized"}
@@ -239,7 +241,7 @@ async def get_isolated_history(request: Request, machine_id: str, timeframe: str
         if timeframe == 'custom' and start and end:
             query += " AND timestamp >= CAST(%s AS TIMESTAMP) AND timestamp <= CAST(%s AS TIMESTAMP)"
             params.extend([start, end])
-        else: query += f" AND timestamp >= NOW() - INTERVAL '{['1h':'1 HOUR', '8h':'8 HOURS', '24h':'24 HOURS', '7d':'7 DAYS', '30d':'30 DAYS'].get(timeframe, '24 HOURS')}'"
+        else: query += f" AND timestamp >= NOW() - INTERVAL '{get_sql_interval(timeframe)}'"
         query += " ORDER BY timestamp ASC"
         cur.execute(query, tuple(params))
         rows = cur.fetchall()
@@ -258,21 +260,8 @@ async def get_history(request: Request, section_id: str, timeframe: str = "24h",
         if timeframe == 'custom' and start and end:
             query += " AND timestamp >= CAST(%s AS TIMESTAMP) AND timestamp <= CAST(%s AS TIMESTAMP)"
             params.extend([start, end])
-        # ... existing code ...
-        else:
-            # Define the dictionary separately to avoid SyntaxError in f-string
-            intervals = {
-                "1h": "1 HOUR", 
-                "8h": "8 HOURS", 
-                "24h": "24 HOURS", 
-                "7d": "7 DAYS", 
-                "30d": "30 DAYS"
-            }
-            interval_val = intervals.get(timeframe, "24 HOURS")
-            query += f" AND timestamp >= NOW() - INTERVAL '{interval_val}'"
-            
+        else: query += f" AND timestamp >= NOW() - INTERVAL '{get_sql_interval(timeframe)}'"
         query += " ORDER BY timestamp ASC"
-# ... existing code ...
         cur.execute(query, tuple(params))
         rows = cur.fetchall()
         cur.close(); conn.close()
@@ -295,7 +284,7 @@ async def export_csv(section_id: str, timeframe: str = "24h", start: str = None,
         if timeframe == 'custom' and start and end:
             query += " AND timestamp >= CAST(%s AS TIMESTAMP) AND timestamp <= CAST(%s AS TIMESTAMP)"
             params.extend([start, end])
-        else: query += f" AND timestamp >= NOW() - INTERVAL '{['1h':'1 HOUR', '8h':'8 HOURS', '24h':'24 HOURS', '7d':'7 DAYS', '30d':'30 DAYS'].get(timeframe, '24 HOURS')}'"
+        else: query += f" AND timestamp >= NOW() - INTERVAL '{get_sql_interval(timeframe)}'"
         query += " ORDER BY timestamp DESC"
         cur.execute(query, tuple(params))
         rows = cur.fetchall()
