@@ -307,54 +307,61 @@ async def get_monthly_stats(section_id: str):
         conn = get_db_connection()
         cur = conn.cursor(cursor_factory=RealDictCursor)
         
-        # This advanced SQL gets the CHRONOLOGICALLY FIRST valid reading and the MAX reading.
-        # It perfectly ignores any drops to 0 or partial sums that were recorded in the database.
+        # --- CURRENT MONTH ---
+        # Instead of MAX(kwh), we use Window Functions to get the exact First and Last readings 
+        # by timestamp. This completely ignores any random garbage spikes stored in the history!
         cur.execute("""
-            WITH FirstReads AS (
-                SELECT machine_id, kwh as start_kwh,
-                       ROW_NUMBER() OVER(PARTITION BY machine_id ORDER BY timestamp ASC) as rn
+            WITH RankedReads AS (
+                SELECT machine_id, kwh, kw,
+                       ROW_NUMBER() OVER(PARTITION BY machine_id ORDER BY timestamp ASC) as rn_asc,
+                       ROW_NUMBER() OVER(PARTITION BY machine_id ORDER BY timestamp DESC) as rn_desc
                 FROM scada_history
                 WHERE section_id = %s 
                   AND timestamp >= DATE_TRUNC('month', CURRENT_DATE) + INTERVAL '7 hours'
                   AND kwh > 0
             ),
-            MaxReads AS (
-                SELECT machine_id, MAX(kwh) as end_kwh, AVG(kw) as avg_kw
+            AvgReads AS (
+                SELECT machine_id, AVG(kw) as avg_kw
                 FROM scada_history
                 WHERE section_id = %s 
                   AND timestamp >= DATE_TRUNC('month', CURRENT_DATE) + INTERVAL '7 hours'
+                  AND kw > 0 AND kw < 5000
                 GROUP BY machine_id
             )
-            SELECT m.machine_id, f.start_kwh, m.end_kwh, m.avg_kw
-            FROM MaxReads m
-            JOIN FirstReads f ON m.machine_id = f.machine_id AND f.rn = 1
+            SELECT 
+                r_start.machine_id, 
+                r_start.kwh as start_kwh, 
+                r_end.kwh as end_kwh,
+                a.avg_kw
+            FROM RankedReads r_start
+            JOIN RankedReads r_end ON r_start.machine_id = r_end.machine_id
+            LEFT JOIN AvgReads a ON r_start.machine_id = a.machine_id
+            WHERE r_start.rn_asc = 1 AND r_end.rn_desc = 1
         """, (section_id, section_id))
         curr_rows = cur.fetchall()
         
-        # Past Month
+        # --- PAST MONTH ---
         cur.execute("""
-            WITH FirstReads AS (
-                SELECT machine_id, kwh as start_kwh,
-                       ROW_NUMBER() OVER(PARTITION BY machine_id ORDER BY timestamp ASC) as rn
+            WITH RankedReads AS (
+                SELECT machine_id, kwh,
+                       ROW_NUMBER() OVER(PARTITION BY machine_id ORDER BY timestamp ASC) as rn_asc,
+                       ROW_NUMBER() OVER(PARTITION BY machine_id ORDER BY timestamp DESC) as rn_desc
                 FROM scada_history
                 WHERE section_id = %s 
                   AND timestamp >= DATE_TRUNC('month', CURRENT_DATE - INTERVAL '1 month') + INTERVAL '7 hours'
                   AND timestamp < DATE_TRUNC('month', CURRENT_DATE) + INTERVAL '7 hours'
                   AND kwh > 0
-            ),
-            MaxReads AS (
-                SELECT machine_id, MAX(kwh) as end_kwh
-                FROM scada_history
-                WHERE section_id = %s 
-                  AND timestamp >= DATE_TRUNC('month', CURRENT_DATE - INTERVAL '1 month') + INTERVAL '7 hours'
-                  AND timestamp < DATE_TRUNC('month', CURRENT_DATE) + INTERVAL '7 hours'
-                GROUP BY machine_id
             )
-            SELECT m.machine_id, f.start_kwh, m.end_kwh
-            FROM MaxReads m
-            JOIN FirstReads f ON m.machine_id = f.machine_id AND f.rn = 1
-        """, (section_id, section_id))
+            SELECT 
+                r_start.machine_id, 
+                r_start.kwh as start_kwh, 
+                r_end.kwh as end_kwh
+            FROM RankedReads r_start
+            JOIN RankedReads r_end ON r_start.machine_id = r_end.machine_id
+            WHERE r_start.rn_asc = 1 AND r_end.rn_desc = 1
+        """, (section_id,))
         past_rows = cur.fetchall()
+        
         cur.close(); conn.close()
         
         stats = {}
@@ -362,8 +369,12 @@ async def get_monthly_stats(section_id: str):
             m_id = str(r['machine_id'])
             s_v = float(r['start_kwh'] or 0)
             e_v = float(r['end_kwh'] or 0)
+            
+            # Calculate exactly: Latest reading minus 1st of month reading
+            energy_used = max(0, e_v - s_v)
+            
             stats[m_id] = {
-                "current_month_energy": round(max(0, e_v - s_v), 2), 
+                "current_month_energy": round(energy_used, 2), 
                 "current_month_avg_kw": round(float(r['avg_kw'] or 0), 2), 
                 "past_month_energy": 0.0
             }
@@ -372,10 +383,13 @@ async def get_monthly_stats(section_id: str):
             m_id = str(r['machine_id'])
             s_v = float(r['start_kwh'] or 0)
             e_v = float(r['end_kwh'] or 0)
+            energy_used = max(0, e_v - s_v)
+            
             if m_id in stats: 
-                stats[m_id]["past_month_energy"] = round(max(0, e_v - s_v), 2)
+                stats[m_id]["past_month_energy"] = round(energy_used, 2)
             else: 
-                stats[m_id] = {"current_month_energy": 0.0, "current_month_avg_kw": 0.0, "past_month_energy": round(max(0, e_v - s_v), 2)}
+                stats[m_id] = {"current_month_energy": 0.0, "current_month_avg_kw": 0.0, "past_month_energy": round(energy_used, 2)}
+                
         return stats
     except Exception as e: 
         print(f"Stats Error: {e}")
