@@ -74,9 +74,8 @@ INDIVIDUAL_MACHINES = {
     "m_ps6": {"name": "PS 6 (CPP)", "password": "machine35"},
     "m_tape_line": {"name": "Tape Line Machine", "password": "machine37"},
     "m_tape_slitter": {"name": "Tape Machine Slitter", "password": "machine38"},
-    # --- MASS VIRTUAL AGGREGATIONS ---
-    "m_line4": {"name": "Line 4", "password": "machine39"},
-    "m_line5": {"name": "Line 5", "password": "machine40"}
+    "m_line4": {"name": "Line 4 Plant", "password": "machine39"},
+    "m_line5": {"name": "Line 5 Plant", "password": "machine40"}
 }
 
 LIVE_DATA = {sec_id: {} for sec_id in SECTIONS.keys()}
@@ -300,34 +299,87 @@ async def export_csv(section_id: str, timeframe: str = "24h", start: str = None,
         return StreamingResponse(output, media_type="text/csv", headers={'Content-Disposition': f'attachment; filename="TriPack_{section_id}_Export.csv"'})
     except Exception as e: return {"error": str(e)}
 
+# --- THE BULLETPROOF MONTHLY STATS CALCULATOR ---
 @app.get("/api/monthly_stats/{section_id}")
 async def get_monthly_stats(section_id: str):
     if not DATABASE_URL: return {}
     try:
         conn = get_db_connection()
         cur = conn.cursor(cursor_factory=RealDictCursor)
-        cur.execute("""SELECT machine_id, MIN(kwh) as start_kwh, MAX(kwh) as end_kwh, AVG(kw) as avg_kw FROM scada_history 
-            WHERE section_id = %s AND timestamp >= DATE_TRUNC('month', CURRENT_DATE) + INTERVAL '7 hours' GROUP BY machine_id""", (section_id,))
+        
+        # This advanced SQL gets the CHRONOLOGICALLY FIRST valid reading and the MAX reading.
+        # It perfectly ignores any drops to 0 or partial sums that were recorded in the database.
+        cur.execute("""
+            WITH FirstReads AS (
+                SELECT machine_id, kwh as start_kwh,
+                       ROW_NUMBER() OVER(PARTITION BY machine_id ORDER BY timestamp ASC) as rn
+                FROM scada_history
+                WHERE section_id = %s 
+                  AND timestamp >= DATE_TRUNC('month', CURRENT_DATE) + INTERVAL '7 hours'
+                  AND kwh > 0
+            ),
+            MaxReads AS (
+                SELECT machine_id, MAX(kwh) as end_kwh, AVG(kw) as avg_kw
+                FROM scada_history
+                WHERE section_id = %s 
+                  AND timestamp >= DATE_TRUNC('month', CURRENT_DATE) + INTERVAL '7 hours'
+                GROUP BY machine_id
+            )
+            SELECT m.machine_id, f.start_kwh, m.end_kwh, m.avg_kw
+            FROM MaxReads m
+            JOIN FirstReads f ON m.machine_id = f.machine_id AND f.rn = 1
+        """, (section_id, section_id))
         curr_rows = cur.fetchall()
-        cur.execute("""SELECT machine_id, MIN(kwh) as start_kwh, MAX(kwh) as end_kwh FROM scada_history 
-            WHERE section_id = %s AND timestamp >= DATE_TRUNC('month', CURRENT_DATE - INTERVAL '1 month') + INTERVAL '7 hours' 
-            AND timestamp < DATE_TRUNC('month', CURRENT_DATE) + INTERVAL '7 hours' GROUP BY machine_id""", (section_id,))
+        
+        # Past Month
+        cur.execute("""
+            WITH FirstReads AS (
+                SELECT machine_id, kwh as start_kwh,
+                       ROW_NUMBER() OVER(PARTITION BY machine_id ORDER BY timestamp ASC) as rn
+                FROM scada_history
+                WHERE section_id = %s 
+                  AND timestamp >= DATE_TRUNC('month', CURRENT_DATE - INTERVAL '1 month') + INTERVAL '7 hours'
+                  AND timestamp < DATE_TRUNC('month', CURRENT_DATE) + INTERVAL '7 hours'
+                  AND kwh > 0
+            ),
+            MaxReads AS (
+                SELECT machine_id, MAX(kwh) as end_kwh
+                FROM scada_history
+                WHERE section_id = %s 
+                  AND timestamp >= DATE_TRUNC('month', CURRENT_DATE - INTERVAL '1 month') + INTERVAL '7 hours'
+                  AND timestamp < DATE_TRUNC('month', CURRENT_DATE) + INTERVAL '7 hours'
+                GROUP BY machine_id
+            )
+            SELECT m.machine_id, f.start_kwh, m.end_kwh
+            FROM MaxReads m
+            JOIN FirstReads f ON m.machine_id = f.machine_id AND f.rn = 1
+        """, (section_id, section_id))
         past_rows = cur.fetchall()
         cur.close(); conn.close()
+        
         stats = {}
         for r in curr_rows:
             m_id = str(r['machine_id'])
-            s, e = float(r['start_kwh'] or 0), float(r['end_kwh'] or 0)
-            s_v, e_v = (s/1000 if s > 1e8 else s), (e/1000 if e > 1e8 else e)
-            stats[m_id] = {"current_month_energy": round(max(0, e_v - s_v), 2), "current_month_avg_kw": round(float(r['avg_kw'] or 0), 2), "past_month_energy": 0.0}
+            s_v = float(r['start_kwh'] or 0)
+            e_v = float(r['end_kwh'] or 0)
+            stats[m_id] = {
+                "current_month_energy": round(max(0, e_v - s_v), 2), 
+                "current_month_avg_kw": round(float(r['avg_kw'] or 0), 2), 
+                "past_month_energy": 0.0
+            }
+            
         for r in past_rows:
             m_id = str(r['machine_id'])
-            s, e = float(r['start_kwh'] or 0), float(r['end_kwh'] or 0)
-            s_v, e_v = (s/1000 if s > 1e8 else s), (e/1000 if e > 1e8 else e)
-            if m_id in stats: stats[m_id]["past_month_energy"] = round(max(0, e_v - s_v), 2)
-            else: stats[m_id] = {"current_month_energy": 0.0, "current_month_avg_kw": 0.0, "past_month_energy": round(max(0, e_v - s_v), 2)}
+            s_v = float(r['start_kwh'] or 0)
+            e_v = float(r['end_kwh'] or 0)
+            if m_id in stats: 
+                stats[m_id]["past_month_energy"] = round(max(0, e_v - s_v), 2)
+            else: 
+                stats[m_id] = {"current_month_energy": 0.0, "current_month_avg_kw": 0.0, "past_month_energy": round(max(0, e_v - s_v), 2)}
         return stats
-    except Exception as e: return {}
+    except Exception as e: 
+        print(f"Stats Error: {e}")
+        return {}
 
 if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=8000)
