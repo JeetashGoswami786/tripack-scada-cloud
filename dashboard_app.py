@@ -74,8 +74,8 @@ INDIVIDUAL_MACHINES = {
     "m_ps6": {"name": "PS 6 (CPP)", "password": "machine35"},
     "m_tape_line": {"name": "Tape Line Machine", "password": "machine37"},
     "m_tape_slitter": {"name": "Tape Machine Slitter", "password": "machine38"},
-    "m_line4": {"name": "Line 4 Plant", "password": "machine39"},
-    "m_line5": {"name": "Line 5 Plant", "password": "machine40"}
+    "m_line4": {"name": "Line 4", "password": "machine39"},
+    "m_line5": {"name": "Line 5", "password": "machine40"}
 }
 
 LIVE_DATA = {sec_id: {} for sec_id in SECTIONS.keys()}
