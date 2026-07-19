@@ -101,6 +101,11 @@ def init_server():
             thd_v REAL DEFAULT 0, thd_i REAL DEFAULT 0)''')
         cur.execute('''CREATE TABLE IF NOT EXISTS entity_passwords (
             entity_id VARCHAR(50) PRIMARY KEY, password VARCHAR(100) NOT NULL)''')
+            
+        # CLEAR THE ZIGZAG GHOST SCRIPT DATA ON STARTUP
+        cur.execute("DELETE FROM scada_history WHERE machine_id = 'm_line4' AND kwh > 85000000;")
+        cur.execute("DELETE FROM scada_history WHERE machine_id = 'm_line5' AND kwh > 35000000;")
+
         all_entities = {**SECTIONS, **MAIN_INCOMING, **INDIVIDUAL_MACHINES}
         for eid, info in all_entities.items():
             cur.execute("INSERT INTO entity_passwords (entity_id, password) VALUES (%s, %s) ON CONFLICT (entity_id) DO NOTHING", (eid, info["password"]))
@@ -207,15 +212,24 @@ async def serve_api_data(section_id: str):
 async def update_live_data(section_id: str, data: dict = Body(...)):
     global LIVE_DATA, last_db_write
     if section_id not in SECTIONS and section_id != "individual_machines": return {"status": "error"}
+    
     if section_id not in LIVE_DATA: LIVE_DATA[section_id] = {}
     LIVE_DATA[section_id].update(data)
+    
     current_time = time.time()
+    
     if DATABASE_URL and (current_time - last_db_write.get(section_id, 0) >= 60):
         try:
             conn = get_db_connection()
             cur = conn.cursor()
             for m_id, vals in data.items():
                 if vals.get('status') == 'Online':
+                    # THE CLOUD FIREWALL: Blocks the Ghost Script!
+                    if str(m_id) == 'm_line4' and float(vals.get('kwh_total', 0)) > 85000000:
+                        continue 
+                    if str(m_id) == 'm_line5' and float(vals.get('kwh_total', 0)) > 35000000:
+                        continue 
+                        
                     cur.execute('''INSERT INTO scada_history (section_id, machine_id, v_l1, v_l2, v_l3, i_l1, i_l2, i_l3, kw, pf, kwh, thd_v, thd_i)
                         VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)''', 
                         (section_id, str(m_id), vals.get('v_l1', 0), vals.get('v_l2', 0), vals.get('v_l3', 0),
@@ -236,6 +250,17 @@ async def get_isolated_history(request: Request, machine_id: str, timeframe: str
     try:
         conn = get_db_connection()
         cur = conn.cursor(cursor_factory=RealDictCursor)
+        
+        # Get start of month kWh to calculate Current Month Energy
+        cur.execute("""
+            SELECT MIN(kwh) as start_kwh FROM scada_history
+            WHERE machine_id = %s 
+              AND timestamp >= DATE_TRUNC('month', CURRENT_DATE) + INTERVAL '7 hours'
+              AND kwh > 0
+        """, (machine_id,))
+        res = cur.fetchone()
+        start_kwh = float(res['start_kwh']) if res and res['start_kwh'] else 0.0
+        
         query = "SELECT machine_id, EXTRACT(EPOCH FROM timestamp) * 1000 AS ts, kw, i_l1, i_l2, i_l3, v_l1, v_l2, v_l3, pf, kwh, thd_v, thd_i FROM scada_history WHERE machine_id = %s"
         params = [machine_id]
         if timeframe == 'custom' and start and end:
@@ -243,10 +268,20 @@ async def get_isolated_history(request: Request, machine_id: str, timeframe: str
             params.extend([start, end])
         else: query += f" AND timestamp >= NOW() - INTERVAL '{get_sql_interval(timeframe)}'"
         query += " ORDER BY timestamp ASC"
+        
         cur.execute(query, tuple(params))
         rows = cur.fetchall()
         cur.close(); conn.close()
-        return {machine_id: [{"ts": r['ts'], "kw": r['kw'], "pf": r['pf'], "kwh": r['kwh'], "v_l1": r['v_l1'], "i_l1": r['i_l1'], "thd_v": r['thd_v']} for r in rows]}
+        
+        history = {machine_id: []}
+        for r in rows:
+            kwh = float(r['kwh'] or 0)
+            cme = round(max(0, kwh - start_kwh), 2) if start_kwh > 0 else 0.0
+            history[machine_id].append({
+                "ts": r['ts'], "kw": r['kw'], "pf": r['pf'], "kwh": kwh, "cme": cme,
+                "v_l1": r['v_l1'], "i_l1": r['i_l1'], "thd_v": r['thd_v']
+            })
+        return history
     except Exception as e: return {"error": str(e)}
 
 @app.get("/api/history/{section_id}")
@@ -255,6 +290,17 @@ async def get_history(request: Request, section_id: str, timeframe: str = "24h",
     try:
         conn = get_db_connection()
         cur = conn.cursor(cursor_factory=RealDictCursor)
+        
+        # Get start of month kWh for ALL machines in section
+        cur.execute("""
+            SELECT machine_id, MIN(kwh) as start_kwh FROM scada_history
+            WHERE section_id = %s 
+              AND timestamp >= DATE_TRUNC('month', CURRENT_DATE) + INTERVAL '7 hours'
+              AND kwh > 0
+            GROUP BY machine_id
+        """, (section_id,))
+        start_map = {r['machine_id']: float(r['start_kwh']) for r in cur.fetchall()}
+
         query = "SELECT machine_id, EXTRACT(EPOCH FROM timestamp) * 1000 AS ts, kw, i_l1, i_l2, i_l3, v_l1, v_l2, v_l3, pf, kwh, thd_v, thd_i FROM scada_history WHERE section_id = %s"
         params = [section_id]
         if timeframe == 'custom' and start and end:
@@ -262,14 +308,24 @@ async def get_history(request: Request, section_id: str, timeframe: str = "24h",
             params.extend([start, end])
         else: query += f" AND timestamp >= NOW() - INTERVAL '{get_sql_interval(timeframe)}'"
         query += " ORDER BY timestamp ASC"
+        
         cur.execute(query, tuple(params))
         rows = cur.fetchall()
         cur.close(); conn.close()
+        
         history = {}
         for row in rows:
             m_id = str(row['machine_id'])
             if m_id not in history: history[m_id] = []
-            history[m_id].append({"ts": row['ts'], "kw": row['kw'], "pf": row['pf'], "kwh": row['kwh'], "v_l1": row['v_l1'], "i_l1": row['i_l1'], "thd_v": row['thd_v']})
+            
+            start_kwh = start_map.get(m_id, 0.0)
+            kwh = float(row['kwh'] or 0)
+            cme = round(max(0, kwh - start_kwh), 2) if start_kwh > 0 else 0.0
+            
+            history[m_id].append({
+                "ts": row['ts'], "kw": row['kw'], "pf": row['pf'], "kwh": kwh, "cme": cme,
+                "v_l1": row['v_l1'], "i_l1": row['i_l1'], "thd_v": row['thd_v']
+            })
         return history
     except Exception as e: return {"error": str(e)}
 
@@ -279,6 +335,14 @@ async def export_csv(section_id: str, timeframe: str = "24h", start: str = None,
     try:
         conn = get_db_connection()
         cur = conn.cursor(cursor_factory=RealDictCursor)
+        
+        cur.execute("""
+            SELECT machine_id, MIN(kwh) as start_kwh FROM scada_history
+            WHERE section_id = %s AND timestamp >= DATE_TRUNC('month', CURRENT_DATE) + INTERVAL '7 hours' AND kwh > 0
+            GROUP BY machine_id
+        """, (section_id,))
+        start_map = {r['machine_id']: float(r['start_kwh']) for r in cur.fetchall()}
+
         query = "SELECT timestamp, machine_id, v_l1, i_l1, kw, pf, kwh, thd_v, thd_i FROM scada_history WHERE section_id = %s"
         params = [section_id]
         if timeframe == 'custom' and start and end:
@@ -289,17 +353,23 @@ async def export_csv(section_id: str, timeframe: str = "24h", start: str = None,
         cur.execute(query, tuple(params))
         rows = cur.fetchall()
         cur.close(); conn.close()
+        
         output = io.StringIO()
         writer = csv.writer(output)
-        writer.writerow(['Date & Time', 'Section', 'Machine ID', 'V_L1', 'I_L1', 'kW', 'PF', 'kWh', 'THD-V', 'THD-I'])
+        writer.writerow(['Date & Time', 'Section', 'Machine ID', 'V_L1', 'I_L1', 'kW', 'PF', 'Total Energy (kWh)', 'Current Month Energy (kWh)', 'THD-V', 'THD-I'])
         for row in rows:
+            m_id = str(row['machine_id'])
+            start_kwh = start_map.get(m_id, 0.0)
+            kwh = float(row['kwh'] or 0)
+            cme = round(max(0, kwh - start_kwh), 2) if start_kwh > 0 else 0.0
+            
             fmt_time = (row['timestamp'] + timedelta(hours=5)).strftime('%d-%b-%Y %I:%M:%S %p') if row['timestamp'] else 'N/A'
-            writer.writerow([fmt_time, section_id, row['machine_id'], row['v_l1'], row['i_l1'], row['kw'], row['pf'], row['kwh'], row['thd_v'], row['thd_i']])
+            writer.writerow([fmt_time, section_id, m_id, row['v_l1'], row['i_l1'], row['kw'], row['pf'], kwh, cme, row['thd_v'], row['thd_i']])
+        
         output.seek(0)
         return StreamingResponse(output, media_type="text/csv", headers={'Content-Disposition': f'attachment; filename="TriPack_{section_id}_Export.csv"'})
     except Exception as e: return {"error": str(e)}
 
-# --- THE BULLETPROOF MONTHLY STATS CALCULATOR ---
 @app.get("/api/monthly_stats/{section_id}")
 async def get_monthly_stats(section_id: str):
     if not DATABASE_URL: return {}
@@ -307,8 +377,6 @@ async def get_monthly_stats(section_id: str):
         conn = get_db_connection()
         cur = conn.cursor(cursor_factory=RealDictCursor)
         
-        # --- CURRENT MONTH ---
-        # Separated into strictly isolated FirstReads and LastReads to prevent 0 kWh overlap bug
         cur.execute("""
             WITH FirstReads AS (
                 SELECT machine_id, kwh as start_kwh,
@@ -334,11 +402,7 @@ async def get_monthly_stats(section_id: str):
                   AND kw > 0 AND kw < 5000
                 GROUP BY machine_id
             )
-            SELECT 
-                f.machine_id, 
-                f.start_kwh, 
-                l.end_kwh,
-                a.avg_kw
+            SELECT f.machine_id, f.start_kwh, l.end_kwh, a.avg_kw
             FROM FirstReads f
             JOIN LastReads l ON f.machine_id = l.machine_id
             LEFT JOIN AvgReads a ON f.machine_id = a.machine_id
@@ -346,7 +410,6 @@ async def get_monthly_stats(section_id: str):
         """, (section_id, section_id, section_id))
         curr_rows = cur.fetchall()
         
-        # --- PAST MONTH ---
         cur.execute("""
             WITH FirstReads AS (
                 SELECT machine_id, kwh as start_kwh,
@@ -366,47 +429,32 @@ async def get_monthly_stats(section_id: str):
                   AND timestamp < DATE_TRUNC('month', CURRENT_DATE) + INTERVAL '7 hours'
                   AND kwh > 0
             )
-            SELECT 
-                f.machine_id, 
-                f.start_kwh, 
-                l.end_kwh
+            SELECT f.machine_id, f.start_kwh, l.end_kwh
             FROM FirstReads f
             JOIN LastReads l ON f.machine_id = l.machine_id
             WHERE f.rn = 1 AND l.rn = 1
         """, (section_id, section_id))
         past_rows = cur.fetchall()
-        
         cur.close(); conn.close()
         
         stats = {}
         for r in curr_rows:
             m_id = str(r['machine_id'])
-            s_v = float(r['start_kwh'] or 0)
-            e_v = float(r['end_kwh'] or 0)
-            
-            energy_used = max(0, e_v - s_v)
-            
+            s_v, e_v = float(r['start_kwh'] or 0), float(r['end_kwh'] or 0)
             stats[m_id] = {
-                "current_month_energy": round(energy_used, 2), 
+                "current_month_energy": round(max(0, e_v - s_v), 2), 
                 "current_month_avg_kw": round(float(r['avg_kw'] or 0), 2), 
                 "past_month_energy": 0.0
             }
             
         for r in past_rows:
             m_id = str(r['machine_id'])
-            s_v = float(r['start_kwh'] or 0)
-            e_v = float(r['end_kwh'] or 0)
-            energy_used = max(0, e_v - s_v)
-            
-            if m_id in stats: 
-                stats[m_id]["past_month_energy"] = round(energy_used, 2)
-            else: 
-                stats[m_id] = {"current_month_energy": 0.0, "current_month_avg_kw": 0.0, "past_month_energy": round(energy_used, 2)}
+            s_v, e_v = float(r['start_kwh'] or 0), float(r['end_kwh'] or 0)
+            if m_id in stats: stats[m_id]["past_month_energy"] = round(max(0, e_v - s_v), 2)
+            else: stats[m_id] = {"current_month_energy": 0.0, "current_month_avg_kw": 0.0, "past_month_energy": round(max(0, e_v - s_v), 2)}
                 
         return stats
-    except Exception as e: 
-        print(f"Stats Error: {e}")
-        return {}
+    except Exception as e: return {}
 
 if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=8000)
