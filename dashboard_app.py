@@ -74,8 +74,9 @@ INDIVIDUAL_MACHINES = {
     "m_ps6": {"name": "PS 6 (CPP)", "password": "machine35"},
     "m_tape_line": {"name": "Tape Line Machine", "password": "machine37"},
     "m_tape_slitter": {"name": "Tape Machine Slitter", "password": "machine38"},
-    "m_line4": {"name": "Line 4", "password": "machine39"},
-    "m_line5": {"name": "Line 5", "password": "machine40"}
+    # CRITICAL FIX: Renamed to v2 to bypass Ghost Script
+    "m_line4_v2": {"name": "Line 4", "password": "machine39"},
+    "m_line5_v2": {"name": "Line 5", "password": "machine40"}
 }
 
 LIVE_DATA = {sec_id: {} for sec_id in SECTIONS.keys()}
@@ -101,10 +102,6 @@ def init_server():
             thd_v REAL DEFAULT 0, thd_i REAL DEFAULT 0)''')
         cur.execute('''CREATE TABLE IF NOT EXISTS entity_passwords (
             entity_id VARCHAR(50) PRIMARY KEY, password VARCHAR(100) NOT NULL)''')
-            
-        # CLEAR THE ZIGZAG GHOST SCRIPT DATA ON STARTUP
-        cur.execute("DELETE FROM scada_history WHERE machine_id = 'm_line4' AND kwh > 85000000;")
-        cur.execute("DELETE FROM scada_history WHERE machine_id = 'm_line5' AND kwh > 35000000;")
 
         all_entities = {**SECTIONS, **MAIN_INCOMING, **INDIVIDUAL_MACHINES}
         for eid, info in all_entities.items():
@@ -217,19 +214,12 @@ async def update_live_data(section_id: str, data: dict = Body(...)):
     LIVE_DATA[section_id].update(data)
     
     current_time = time.time()
-    
     if DATABASE_URL and (current_time - last_db_write.get(section_id, 0) >= 60):
         try:
             conn = get_db_connection()
             cur = conn.cursor()
             for m_id, vals in data.items():
                 if vals.get('status') == 'Online':
-                    # THE CLOUD FIREWALL: Blocks the Ghost Script!
-                    if str(m_id) == 'm_line4' and float(vals.get('kwh_total', 0)) > 85000000:
-                        continue 
-                    if str(m_id) == 'm_line5' and float(vals.get('kwh_total', 0)) > 35000000:
-                        continue 
-                        
                     cur.execute('''INSERT INTO scada_history (section_id, machine_id, v_l1, v_l2, v_l3, i_l1, i_l2, i_l3, kw, pf, kwh, thd_v, thd_i)
                         VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)''', 
                         (section_id, str(m_id), vals.get('v_l1', 0), vals.get('v_l2', 0), vals.get('v_l3', 0),
@@ -251,7 +241,6 @@ async def get_isolated_history(request: Request, machine_id: str, timeframe: str
         conn = get_db_connection()
         cur = conn.cursor(cursor_factory=RealDictCursor)
         
-        # Get start of month kWh to calculate Current Month Energy
         cur.execute("""
             SELECT MIN(kwh) as start_kwh FROM scada_history
             WHERE machine_id = %s 
@@ -291,7 +280,6 @@ async def get_history(request: Request, section_id: str, timeframe: str = "24h",
         conn = get_db_connection()
         cur = conn.cursor(cursor_factory=RealDictCursor)
         
-        # Get start of month kWh for ALL machines in section
         cur.execute("""
             SELECT machine_id, MIN(kwh) as start_kwh FROM scada_history
             WHERE section_id = %s 
@@ -441,8 +429,9 @@ async def get_monthly_stats(section_id: str):
         for r in curr_rows:
             m_id = str(r['machine_id'])
             s_v, e_v = float(r['start_kwh'] or 0), float(r['end_kwh'] or 0)
+            energy_used = max(0, e_v - s_v)
             stats[m_id] = {
-                "current_month_energy": round(max(0, e_v - s_v), 2), 
+                "current_month_energy": round(energy_used, 2), 
                 "current_month_avg_kw": round(float(r['avg_kw'] or 0), 2), 
                 "past_month_energy": 0.0
             }
@@ -450,8 +439,9 @@ async def get_monthly_stats(section_id: str):
         for r in past_rows:
             m_id = str(r['machine_id'])
             s_v, e_v = float(r['start_kwh'] or 0), float(r['end_kwh'] or 0)
-            if m_id in stats: stats[m_id]["past_month_energy"] = round(max(0, e_v - s_v), 2)
-            else: stats[m_id] = {"current_month_energy": 0.0, "current_month_avg_kw": 0.0, "past_month_energy": round(max(0, e_v - s_v), 2)}
+            energy_used = max(0, e_v - s_v)
+            if m_id in stats: stats[m_id]["past_month_energy"] = round(energy_used, 2)
+            else: stats[m_id] = {"current_month_energy": 0.0, "current_month_avg_kw": 0.0, "past_month_energy": round(energy_used, 2)}
                 
         return stats
     except Exception as e: return {}
